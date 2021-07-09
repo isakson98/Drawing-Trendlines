@@ -11,9 +11,11 @@ import pandas as pd
 import typing
 from sortedcontainers import SortedKeyList
 
+import datetime as dt
+
+
 
 def edge_detection(df, period=3):
-    print("test")
     def edge(col):
         mean = col.mean()
         if col[0] > mean and col[-1] > mean:
@@ -31,7 +33,7 @@ def rescale_prices(ohlc_series, rescale_digits=3):
     return rounded_ohlc
 
 
-def ta_trend_lines(df: pd.Series,
+def hough_trend_lines(df: pd.Series,
                    edge_periods=3,
                    rescale_digits=4,
                    degrees=(-90, 90),
@@ -118,7 +120,9 @@ def ta_trend_lines(df: pd.Series,
         index=range(len(points), 0, -1)
     )
 
-    return accumulated, line_lookup_table
+    lines = line_lookup_table[line_lookup_table["distance"] > dt.timedelta(days=255)]
+
+    return accumulated, lines
 
 
 # find turning points and use them as edge detection
