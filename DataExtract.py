@@ -17,8 +17,10 @@ def retrieve_ticker_data(ticker_id, start="2020-01-01", end="2020-12-30"):
     if os.path.exists(file_path):
         existing_df = pd.read_csv(file_path, index_col="Date")
         existing_df.index = pd.to_datetime(existing_df.index)
+        existing_df = existing_df.reset_index()
         return existing_df
 
     data = yf.download(ticker_id, start=start, end=end, threads=False)
     data.to_csv(file_path)
+    data = data.reset_index()
     return data

@@ -11,18 +11,25 @@ import datetime as dt
 
 # data extraction
 from DataExtract import retrieve_ticker_data
+'''
+To perform linear regression well (meaning draw a clear trendline) 
+more than once on one chart, I need to be able to assign starting points
+and end points to the lines.
 
-# to perform linear regression well (meaning draw a clear trendline) 
-# more than once on one chart, I need to be able to assign starting points
-# and end points to the lines.
-# Starting points brainstorm:
-# -- higher highs / lower highs (easiest)
-# -- 
-def identify_lows_highs(ohlc, ohlc_type, len, isHigh):
+Starting points brainstorm:
+-- higher highs / lower highs (easiest)
+This function will find local extrema that will act as starting points
+'''
+#TODO make less if statements
+def identify_lows_highs(ohlc, ohlc_type, len):
 
-    ohlc = ohlc.reset_index()
+    if ohlc_type == "High":
+        isHigh = True
+    else:
+        isHigh = False
+
+
     ohlc[f"{ohlc_type} Extremes"] = True
-    print(ohlc.head())
 
     for i, r in ohlc.iterrows():
         # skip to avoid index out of bounds
@@ -48,34 +55,84 @@ def identify_lows_highs(ohlc, ohlc_type, len, isHigh):
     return ohlc
 
 
+'''
+allows to specify which range of values you want a trendline to be drawn at
+calculating trendlines based on the price candles
+
+with a start point identified, we need to identify the end
+in a primitive approach -> iterate by each day (starting from +5 days)
+until a new candles high is above the linear regression from yesterdays
+
+'''
+#TODO merge ascending and descending trendline into if possible
+def identify_decending_trendlines_LinReg(ohlc, start=None, end=None):
+
+    # if a start date is not given, assume the entire chart for a trendline 
+    if start != None:
+        ohlc = ohlc[start:end]
+
+    # retrieve index values where high extremes are
+    high_points  = ohlc[ohlc["High Extremes"]==True].index.tolist()
+    trendlines_start_end_points = []
+    # find trendlines from each high
+    for high in high_points:
+        trendline_count = 0
+        days_forward = 1
+        # iterate though each day forward to find several trendlines from same high
+        while trendline_count < 3:
+            end_index = high + 5 + days_forward # I count trendlines at least of 5 days
+            data1 = ohlc.loc[high:end_index,:].copy()
+            # draw the trendline through linear regression
+            # have to figure out when to identify a breakout from the trendline
+            while len(data1)>2: #TODO -> fix hyperparameter number 2
+                # slope, intercept, r, p, se = linregress(x, y)
+                reg = linregress(
+                                x=data1.index,
+                                y=data1['High'],
+                                )
+
+                data1 = data1.loc[data1['High'] > reg[0] * data1.index + reg[1]]
+                ohlc['high_trend'] = reg[0] * ohlc.index+ reg[1]
+
+                # if current high is above computed trendline that ends on previous candle ->
+                # this is a break out
+                trendline_pos_new_day = reg[0] * (end_index + 1) + reg[1]
+                if trendline_pos_new_day < ohlc.loc[end_index + 1,"High"]:
+                    current_start_endpoints = [(high, ohlc.at[high, 'high_trend']),
+                                                (end_index + 1, trendline_pos_new_day)]
+                    trendlines_start_end_points.append(current_start_endpoints)
+                    trendline_count += 1
+            
+            days_forward += 1
+
+    # first_date = high
+    # last_date = ohlc.index[-1]
+
+    # high_trend = [(first_date, ohlc.at[first_date, 'high_trend']),
+    #              (last_date, ohlc.at[last_date, 'high_trend'])]
+
+    # technicals_df = pd.DataFrame({"points":[high_trend]})
+
+    return ohlc, technicals_df
+
+
+    
 # allows to specify which range of values you want a trendline to be drawn at
 # calculating trendlines based on the price candles
 # calculates one ascending and one descending trendline
-def identify_trendlines_LinReg(ohlc_data, start=None, end=None):
+def identify_ascending_trendlines_LinReg(ohlc, start=None, end=None):
+
+    ohlc = ohlc.reset_index()
 
     # if not default
     if start != None:
-        ohlc_data = ohlc_data[start:end]
+        ohlc = ohlc[start:end]
 
-    ohlc_data['date_id'] = ((ohlc_data.index - ohlc_data.index.min())).astype('timedelta64[D]')
-    ohlc_data['date_id'] = ohlc_data['date_id'] + 1
-
-    # descending trend line
-    data1 = ohlc_data.copy()
-    while len(data1)>2:
-        # slope, intercept, r, p, se = linregress(x, y)
-        reg = linregress(
-                        x=data1['date_id'],
-                        y=data1['High'],
-                        )
-
-        data1 = data1.loc[data1['High'] > reg[0] * data1['date_id'] + reg[1]]
- 
-        ohlc_data['high_trend'] = reg[0] * ohlc_data['date_id'] + reg[1]
-
+    ohlc['date_id'] = ((ohlc.index - ohlc.index.min())).astype('timedelta64[D]')
+    ohlc['date_id'] = ohlc['date_id'] + 1
 
     # ascending trend line
-    data1 = ohlc_data.copy()
+    data1 = ohlc.copy()
     while len(data1)>2:
         reg = linregress(
                         x=data1['date_id'],
@@ -83,20 +140,18 @@ def identify_trendlines_LinReg(ohlc_data, start=None, end=None):
                         )
         # removes all prices point that are above the ascending trendline
         data1 = data1.loc[data1['Low'] < reg[0] * data1['date_id'] + reg[1]]
-        ohlc_data['low_trend'] = reg[0] * ohlc_data['date_id'] + reg[1]
+        ohlc['low_trend'] = reg[0] * ohlc['date_id'] + reg[1]
 
 
-    first_date = ohlc_data.index[0]
-    last_date = ohlc_data.index[-1]
-
-    high_trend = [(first_date, ohlc_data.at[first_date, 'high_trend']),
-                 (last_date, ohlc_data.at[last_date, 'high_trend'])]
+    first_date = ohlc.index[0]
+    last_date = ohlc.index[-1]
     
-    low_trend = [(first_date, ohlc_data.at[first_date, 'low_trend']),
-                 (last_date, ohlc_data.at[last_date, 'low_trend'])]
+    low_trend = [(first_date, ohlc.at[first_date, 'low_trend']),
+                 (last_date, ohlc.at[last_date, 'low_trend'])]
 
-    technicals_df = pd.DataFrame({"points":[high_trend, low_trend]})
+    return ohlc, low_trend
 
-    return ohlc_data, technicals_df
+
+
 
 
