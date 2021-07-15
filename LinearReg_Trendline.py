@@ -14,43 +14,38 @@ from DataExtract import retrieve_ticker_data
 
 # to perform linear regression well (meaning draw a clear trendline) 
 # more than once on one chart, I need to be able to assign starting points
-# to the lines and end points.
+# and end points to the lines.
 # Starting points brainstorm:
 # -- higher highs / lower highs (easiest)
 # -- 
 def identify_lows_highs(ohlc, ohlc_type, len, isHigh):
 
-    ohlc[f"{ohlc_type} Extremes"] = False
+    ohlc = ohlc.reset_index()
+    ohlc[f"{ohlc_type} Extremes"] = True
+    print(ohlc.head())
 
     for i, r in ohlc.iterrows():
+        # skip to avoid index out of bounds
+        if i < len * 2:
+            continue
+        # get earliest value
+        earliest = ohlc.at[i - len, ohlc_type]
+        # get most extreme value in the range (either low or high)
+        if isHigh:
+            most_extreme = ohlc.loc[i - len * 2 : i, ohlc_type].max()
+        if not isHigh:
+            most_extreme = ohlc.loc[i - len * 2 : i, ohlc_type].min()
 
-        isFound = True
-        current_price = ohlc.at[i, ohlc_type]
+        # compare if earlist is the most extreme in the range given
+        if earliest < most_extreme and isHigh:
+            ohlc.at[i - len, f"{ohlc_type} Extremes"] = False
+        if earliest > most_extreme and not isHigh:
+            ohlc.at[i - len, f"{ohlc_type} Extremes"] = False
 
-        ohlc_fragment = ohlc[i - dt.timedelta(days=len) : i]
-        prev_extreme = ohlc_fragment[ohlc_type].rolling(window=len, min_periods=1).max()       
-        prev_extreme = prev_extreme[i]
-        print(prev_extreme)
-        if isHigh and (prev_extreme > current_price):
-            isFound = False
-        if not isHigh and (prev_extreme < current_price):
-            isFound = False
+        if ohlc.at[i - len , f"{ohlc_type} Extremes"]:
+            print(ohlc.at[i - len , "Date"])
 
-
-        ohlc_fragment = ohlc[i - dt.timedelta(days=len) * 2 : i - dt.timedelta(days=len)]
-        prev_extreme = ohlc_fragment[ohlc_type].rolling(window=len, min_periods=1).max()
-        print(prev_extreme)
-        prev_extreme = prev_extreme[i - dt.timedelta(days=len) * 2]
-        if isHigh and (prev_extreme >= current_price):
-            isFound = False
-        if not isHigh and (prev_extreme <= current_price):
-            isFound = False    
-        
-        if isFound:
-            ohlc.at[i, f"{ohlc_type} Extremes"] = True
-            print(i)
-
-    pass
+    return ohlc
 
 
 # allows to specify which range of values you want a trendline to be drawn at

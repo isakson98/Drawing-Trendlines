@@ -19,6 +19,6 @@ def retrieve_ticker_data(ticker_id, start="2020-01-01", end="2020-12-30"):
         existing_df.index = pd.to_datetime(existing_df.index)
         return existing_df
 
-    data = yf.download(ticker_id, start=start, end=end)
+    data = yf.download(ticker_id, start=start, end=end, threads=False)
     data.to_csv(file_path)
     return data
