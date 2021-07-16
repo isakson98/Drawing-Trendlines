@@ -22,7 +22,7 @@ def visualize_ticker(ohlc_data, additional_stuff):
         fig.add_trace(go.Scatter(x=[r["points"][0][0], r["points"][-1][0]],
                                  y=[r["points"][0][1], r["points"][-1][1]],
                                  mode="lines",
-                                 line=go.scatter.Line(color="gray"),
+                                 line=go.scatter.Line(color="black"),
                                  showlegend=False))
 
     fig.show()

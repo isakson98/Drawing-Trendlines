@@ -10,10 +10,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 
 
-ohlc_data = retrieve_ticker_data("NIO")
-# accumulated, technicals_df = hough_trend_lines(ohlc_data["Low"])
-# visualize_ticker(ohlc_data, technicals_df)
-
-ohlc_data = identify_lows_highs(ohlc_data, "High", 5)
-ohlc_data, technicals_df = identify_decending_trendlines_LinReg(ohlc_data)
+ohlc_data = retrieve_ticker_data("NET")
+ohlc_data = identify_lows_highs(ohlc_data, "High", 10)
+ohlc_data, technicals_df = identify_decending_trendlines_LinReg(ohlc_data, min_days_out=10, precisesness=2)
 visualize_ticker(ohlc_data, technicals_df)

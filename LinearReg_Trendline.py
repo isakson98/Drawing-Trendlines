@@ -20,7 +20,8 @@ Starting points brainstorm:
 -- higher highs / lower highs (easiest)
 This function will find local extrema that will act as starting points
 '''
-#TODO make less if statements
+# TODO make less if statements
+# TODO -> save highs and lows to dataframe 
 def identify_lows_highs(ohlc, ohlc_type, len):
 
     if ohlc_type == "High":
@@ -49,9 +50,6 @@ def identify_lows_highs(ohlc, ohlc_type, len):
         if earliest > most_extreme and not isHigh:
             ohlc.at[i - len, f"{ohlc_type} Extremes"] = False
 
-        if ohlc.at[i - len , f"{ohlc_type} Extremes"]:
-            print(ohlc.at[i - len , "Date"])
-
     return ohlc
 
 
@@ -64,8 +62,8 @@ in a primitive approach -> iterate by each day (starting from +5 days)
 until a new candles high is above the linear regression from yesterdays
 
 '''
-#TODO merge ascending and descending trendline into if possible
-def identify_decending_trendlines_LinReg(ohlc, start=None, end=None):
+# TODO merge ascending and descending trendline into if possible
+def identify_decending_trendlines_LinReg(ohlc, start=None, end=None, min_days_out=5, precisesness=4):
 
     # if a start date is not given, assume the entire chart for a trendline 
     if start != None:
@@ -74,17 +72,18 @@ def identify_decending_trendlines_LinReg(ohlc, start=None, end=None):
     # retrieve index values where high extremes are
     high_points  = ohlc[ohlc["High Extremes"]==True].index.tolist()
     trendlines_start_end_points = []
-    # find trendlines from each high
-    for high in high_points:
+    # find trendlines from each high (first five are dummies)
+    for high in high_points[5:]:
         trendline_count = 0
-        days_forward = 1
+        days_forward = min_days_out
+        end_index = high # I count trendlines at least of 5 days
         # iterate though each day forward to find several trendlines from same high
-        while trendline_count < 3:
-            end_index = high + 5 + days_forward # I count trendlines at least of 5 days
+        while trendline_count < 3 and end_index + days_forward + 1 < ohlc.index[-1] :
+            end_index = high + days_forward
             data1 = ohlc.loc[high:end_index,:].copy()
             # draw the trendline through linear regression
             # have to figure out when to identify a breakout from the trendline
-            while len(data1)>2: #TODO -> fix hyperparameter number 2
+            while len(data1)>precisesness: #TODO -> fix hyperparameter number 2
                 # slope, intercept, r, p, se = linregress(x, y)
                 reg = linregress(
                                 x=data1.index,
@@ -105,13 +104,7 @@ def identify_decending_trendlines_LinReg(ohlc, start=None, end=None):
             
             days_forward += 1
 
-    # first_date = high
-    # last_date = ohlc.index[-1]
-
-    # high_trend = [(first_date, ohlc.at[first_date, 'high_trend']),
-    #              (last_date, ohlc.at[last_date, 'high_trend'])]
-
-    # technicals_df = pd.DataFrame({"points":[high_trend]})
+    technicals_df = pd.DataFrame({"points":trendlines_start_end_points})
 
     return ohlc, technicals_df
 
