@@ -1,0 +1,41 @@
+CURRENT TASKS:
+- expand to cover longer length trendlines without hardcoding
+- refactor trendlines function to cover ascending and descending lines
+- make the trendline class to cover all 
+- find a way to backtest these trendlines (after being to find)
+- find a way to precompute high/lows 
+
+LATER ON TASKS:
+- feed in the data of linear regression made trendlines into 
+- neural networks to determine best ones + other parameters 
+-> best ones? --> the ones that have the best R/R as a result of the breakout
+
+FEATURES for neural network:
+-> like spy conditions
+-> duration of the trendline
+-> if I have both descending and ascending trendlines:
+-> range between starts of trendlines vs range between end of trendline + duration of it
+-> slope of descending trendline vs slope of ascending trendline
+-> start of trendline with relation to the previous low
+--> these comparisons will have to be in proportions and adjusted for varying ADR
+
+----------------------------------------------------------------------
+
+PROJECT COMPONENTS
+
+-> DATA 
+--> stock data
+--> feature / precomputed data 
+--> should be easily updateable on a daily basis
+--> should be able to accomodate
+
+-> FEATURE ENGINEERING
+--> implementing linear regression for trendlines 
+--> obtaining trendlines using various hyperparameters
+--> calculating statistics of those trendlines (as features for next )
+--> tracking whether a breakout is successful or not (depends on entry / exit rules)
+
+-> TESTING designed feature / strategy
+--> specifying entries (initial and adds) and exits (stoplosses, targets, trailing stops)
+--> 
+

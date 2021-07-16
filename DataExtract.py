@@ -6,10 +6,17 @@ from yfinance import ticker
 import pandas as pd
 import os
 
+# TODO -> think if you can implement a db with available stocks in it
+# consider how you want to structure it
+# do you want all stocks or only the best ones or best ones AND when they were trending?
+# TODO -> figure out the issue with dates and clipping portions of a stock for requested dates?
+'''
+retrieving specified ticker with default range as 2020 to present day
+save to avoid ovearhead downloading it
+'''
+def retrieve_ticker_data(ticker_id, start="2020-01-01", end="2021-07-15"):
 
-# retrieving specified ticker with default range as 2020
-# save to avoid ovearhead downloading it
-def retrieve_ticker_data(ticker_id, start="2020-01-01", end="2020-12-30"):
+    ticker_id = ticker_id.upper()
     file_path = "/data/{}_{}_{}.csv".format(ticker_id, start, end)
     file_path = os.getcwd() + file_path 
 

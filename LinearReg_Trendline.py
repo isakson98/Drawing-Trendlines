@@ -52,6 +52,12 @@ def identify_lows_highs(ohlc, ohlc_type, len):
 
     return ohlc
 
+def calculate_lin_reg(ohlc, x_index, y_prices):
+    reg = linregress(x=x_index,y=y_prices)
+    data1 = ohlc.loc[y_prices > reg[0] * x_index + reg[1]]
+
+    return data1, reg
+
 
 '''
 allows to specify which range of values you want a trendline to be drawn at
@@ -83,21 +89,18 @@ def identify_decending_trendlines_LinReg(ohlc, start=None, end=None, min_days_ou
             data1 = ohlc.loc[high:end_index,:].copy()
             # draw the trendline through linear regression
             # have to figure out when to identify a breakout from the trendline
-            while len(data1)>precisesness: #TODO -> fix hyperparameter number 2
+            while len(data1) > precisesness: #TODO -> fix hyperparameter number 2
                 # slope, intercept, r, p, se = linregress(x, y)
-                reg = linregress(
-                                x=data1.index,
-                                y=data1['High'],
-                                )
 
-                data1 = data1.loc[data1['High'] > reg[0] * data1.index + reg[1]]
-                ohlc['high_trend'] = reg[0] * ohlc.index+ reg[1]
+                data1, reg = calculate_lin_reg(data1, data1.index, data1['High'])
 
                 # if current high is above computed trendline that ends on previous candle ->
                 # this is a break out
+                trendline_start_price = reg[0] * (high) + reg[1]
                 trendline_pos_new_day = reg[0] * (end_index + 1) + reg[1]
+
                 if trendline_pos_new_day < ohlc.loc[end_index + 1,"High"]:
-                    current_start_endpoints = [(high, ohlc.at[high, 'high_trend']),
+                    current_start_endpoints = [(high, trendline_start_price),
                                                 (end_index + 1, trendline_pos_new_day)]
                     trendlines_start_end_points.append(current_start_endpoints)
                     trendline_count += 1
