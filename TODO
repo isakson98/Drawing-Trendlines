@@ -26,16 +26,36 @@ PROJECT COMPONENTS
 -> DATA 
 --> stock data
 --> feature / precomputed data 
---> should be easily updateable on a daily basis
+--> should be easily updateable 
+----> on a daily basis
+----> trendlines' label should be updateable based on entry on exit spefications
 --> should be able to accomodate
+q:
+how do I store feature data like high and low that depends on parameters itself?
+how do I choose the parameters for highs / lows and linear regression quality to capture all possible versions of successful trendlines
+raw data where I got a trendline from should be easily accessible to add features for the neaural network
+
 
 -> FEATURE ENGINEERING
 --> implementing linear regression for trendlines 
 --> obtaining trendlines using various hyperparameters
 --> calculating statistics of those trendlines (as features for next )
---> tracking whether a breakout is successful or not (depends on entry / exit rules)
+--> tracking whether a breakout is successful or not 
+---> (depends on entry / exit rules, which is section within its own right)
+q: how do I backtest in such way that I isolate features and labels in a way that does not interfere with backtesting
+q: should i have a trendline per row, with all computed data about it 
 
--> TESTING designed feature / strategy
+-> BACK TESTING designed feature / strategy
 --> specifying entries (initial and adds) and exits (stoplosses, targets, trailing stops)
 --> 
+q: 
+- Do i want something developed in-house or utilized well-writtern libraries like zipline or backtext
+-- Can I code the outcome of a neural network into the backtest libraries 
+
+
+essential workflow in real time ->
+--> identify a trendline using linear regression
+--> compute certain statistics of the trendline (as well as potentially stock fundumentals)
+--> send those features into a neural network that will compute the probability of this trendline to work or nah
+--> decide on a threshold that you want
 
