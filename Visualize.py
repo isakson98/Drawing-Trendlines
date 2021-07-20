@@ -17,6 +17,7 @@ def visualize_ticker(ohlc_data, additional_stuff):
     
     all_data = [price_trace]
     fig = go.Figure(all_data)
+    fig.update_yaxes(fixedrange = False)
     ohlc_data["Close"].plot(figsize=(15, 8))
     for i, r in additional_stuff.iterrows():
         fig.add_trace(go.Scatter(x=[r["points"][0][0], r["points"][-1][0]],
