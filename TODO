@@ -6,7 +6,7 @@ Goals:
     2. trendline types and their criteria (try to capture all types of trendlines that work)
     3. entries and exits for a trading idea
     4. trendline statistics 
-- ability to visualize the results for demonstration and verification purposes
+- ability to visualize the results for demonstration and verification purposes (gui where I can draw a trendline to tell me its probabilities)
 - ability to back test results and see them in real time
 ----------------------------------------------------------------------
 
@@ -108,9 +108,14 @@ Trendline : line across which the general extrema price points align in a consol
 
 FEATURES for neural network:
 -> spy conditions
+-> sector conditions
+-> is current local high, higher than previous high?
 -> duration of the trendline
+-> height between low and high in the consolidation
+-> end of trendline price relative to either peak or low
 -> if I have both descending and ascending trendlines:
--> range between starts of trendlines vs range between end of trendline + duration of it
 -> slope of descending trendline vs slope of ascending trendline
--> start of trendline with relation to the previous low
+-> start of trendline with relation to the previous low 
+-> duration between previous low and extrema 
+-> is a breakout based on a gap up (significant gap up)
 --> these comparisons will have to be in proportions and adjusted for varying ADR
