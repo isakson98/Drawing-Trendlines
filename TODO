@@ -116,6 +116,7 @@ FEATURES for neural network:
 -> if I have both descending and ascending trendlines:
 -> slope of descending trendline vs slope of ascending trendline
 -> start of trendline with relation to the previous low 
--> duration between previous low and extrema 
+-> duration between previous low and extrema
+-> precisiness as a feature 
 -> is a breakout based on a gap up (significant gap up)
 --> these comparisons will have to be in proportions and adjusted for varying ADR
