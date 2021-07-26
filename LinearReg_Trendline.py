@@ -11,8 +11,6 @@ import os
 from scipy.stats import linregress
 import datetime as dt
 
-# data extraction
-from DataExtract import retrieve_ticker_data
 
 
 class Trendline_Drawing:
