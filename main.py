@@ -8,7 +8,9 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import pandas as pd
 
-data_obj = DataReceiveExtractor()
+data_obj = DataReceiveExtractor()   
+# df = data_obj.get_daily_price_data("PLUG")
+# print(df.head(10))
 data_obj.get_all_current_price_data()
 
 

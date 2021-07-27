@@ -46,6 +46,7 @@ class StockScreener:
     it fetches data from NASDAQ api, given the parameters
     '''
     def retrieve_current_tickers(self, NYSE=True, NASDAQ=True, AMEX=True, SPACS=False, CLASS_SHARES=False):
+
         exchange_dict = {'nyse':NYSE, 'nasdaq':NASDAQ, 'amex':AMEX}
         for exchange in self._EXCHANGE_LIST:
             if exchange_dict[exchange]:
@@ -56,6 +57,9 @@ class StockScreener:
             self.tickers_df = self.__rmv_subclass_shares(self.tickers_df)
         if SPACS == False:
             self.tickers_df = self.__rmv_spacs(self.tickers_df)
+
+        self.tickers_df = self.__rmv_empty_volume(self.tickers_df)
+
         return self.tickers_df
 
     '''
@@ -90,6 +94,16 @@ class StockScreener:
     '''
     def __rmv_spacs(self, tickers_df):
         self.tickers_df = tickers_df[~tickers_df['name'].str.contains("acquisition", case=False, regex=False)]
+        return self.tickers_df
+
+    '''
+    parameter -> cur_tickers_df (must contain column "volume")
+    this function filters out rows where volume is 0.
+
+    Reason: these are warrants and greatly unnecessary tickers.
+    '''
+    def __rmv_empty_volume(self, tickers_df):
+        self.ticker_df = tickers_df[tickers_df["volume"] > 0]
         return self.tickers_df
 
 
