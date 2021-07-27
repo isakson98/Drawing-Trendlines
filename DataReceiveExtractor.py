@@ -1,16 +1,20 @@
-# using yfinance to retrieve daily OHLC candles from Yahoo
-import yfinance as yf
-from yfinance import ticker
+# using alpha vantage to retrieve daily OHLC candles from Yahoo
+from alpha_vantage.timeseries import TimeSeries
 
 # using to access file
 import pandas as pd
 import os
 
 # for faster data downloading
+from concurrent.futures import ThreadPoolExecutor
 import threading
 
 # requests to exchanges
 from StockScreener import StockScreener
+
+from credentials import alpha_vantage_key
+
+import re
 
 '''
 -> DATA 
@@ -39,8 +43,8 @@ Objectives:
 class DataReceiveExtractor:
 
     dirname = os.path.dirname(__file__)
-    raw_price_path =  os.path.join(dirname, "data\\raw")
-    processed_price_path = os.path.join(dirname, "data\\processed")
+    raw_price_path =  os.path.join(dirname, "data\\raw\\price")
+    processed_price_path = os.path.join(dirname, "data\\processed\\price")
     watchlists_path = os.path.join(dirname, "data\\watchlists")
 
     '''
@@ -52,57 +56,93 @@ class DataReceiveExtractor:
         # importing only for this function because it has overhead
         file_name = "all_current_tickers.csv"
         file_path = os.path.join(self.watchlists_path, file_name)
+
         if os.path.exists(file_path):
             tickers = pd.read_csv(file_path)
-            return tickers
+        else:
+            screener = StockScreener()
+            tickers = screener.retrieve_current_tickers()
+            tickers.to_csv(file_path, index=False)
 
-        screener = StockScreener()
-        tickers = screener.get_current_tickers()
-        tickers.to_csv(file_path)
-        return tickers
+        return tickers["symbol"].tolist()
 
     '''
     use quandl or eodhistoricaldata api
     naming standard -> ex. "TICKER_timeframe.csv" -> "AMC_d.csv"
-    valid timeframe: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
     '''
-    def get_price_data(self, ticker_name, timeframe="1d"):
+    def get_daily_price_data(self, ticker_name):
 
         # organize path
         ticker_name = ticker_name.upper()
-        file_name = ticker_name + "_" + timeframe
-        file_path = os.path.join(self.raw_price_path, timeframe)
+        file_name = ticker_name + "_1d.csv"
+        file_path = os.path.join(self.raw_price_path)
         file_path = os.path.join(file_path, file_name)
 
         # check existing
         if os.path.exists(file_path):
-            existing_df = pd.read_csv(file_path, index_col="Date")
-            existing_df.index = pd.to_datetime(existing_df.index)
-            existing_df = existing_df.reset_index()
+            print(f"{ticker_name} already downloaded")
+            existing_df = pd.read_csv(file_path)
+            existing_df["date"] = pd.to_datetime(existing_df["date"])
             return existing_df
+        
+        ts = TimeSeries(key=alpha_vantage_key, output_format='pandas')
+        data, _ = ts.get_daily_adjusted(ticker_name, outputsize='full')
+        
+        new_col_names = {"1. open":"Open",
+                         "2. high":"High",
+                         "3. low" : "Low",
+                         "4. close" :"Close",
+                         "5. adjusted close":"Adjusted close",
+                         "6. volume" : "Volume",
+                         "7. dividend amount" : "Dividends",
+                         "8. split coefficient" : "Split",}
 
-        data = yf.download(ticker_name)
+        data.rename(columns=new_col_names)
         data.to_csv(file_path)
         data = data.reset_index()
         return data
 
-    '''
-    function to use if you want to retrieve data from more than one stock
-    '''
-    def get_multiple_price_data(self, list_tickers, timeframe="1d", return_data=True, number_threads=10):
-        # portion_tickers = len(list_tickers) // number_threads
-        # for thread in range(number_threads):
-        #     start_ind = thread * portion_tickers
-        #     end_ind = (1 + thread) * portion_tickers
-        #     if thread == number_threads - 1:
-        #         end_ind = len(list_tickers) - 1
-        #     t = threading.Thread(target=self.get_price_data, arg=(list_tickers[start_ind:end_ind]))
 
+    '''
+    thread helper function for get_multiple_price_data()
+    '''
+    def __thread_get_multiple_price_data(self, list_tickers, timeframe="1d"):
         data_list = dict()
         for ticker in list_tickers:
-            data_list[ticker] = self.get_price_data(self, ticker, timeframe)
-
+            data_list[ticker] = self.get_daily_price_data(ticker, timeframe)
+        
         return data_list
+ 
+
+    '''
+    function to use if you want to retrieve data from more than one stock
+    each thread works on a section of the list that needs to be downloaded
+    '''
+    def get_multiple_price_data(self, list_tickers, timeframe="1d", return_data=True, number_threads=2):
+        
+        if len(list_tickers) < number_threads:
+            number_threads = len(list_tickers)
+
+        portion_tickers = len(list_tickers) // number_threads
+
+        list_threads = list()
+        for thread in range(number_threads):
+            start_ind = thread * portion_tickers
+            end_ind = (1 + thread) * portion_tickers
+            if thread == number_threads - 1:
+                end_ind = len(list_tickers) - 1
+            t = threading.Thread(
+                                 target=self.__thread_get_multiple_price_data, 
+                                 args=(list_tickers[start_ind:end_ind], timeframe,)
+                                 )
+            list_threads.append(t)
+            t.start()
+
+        # need to call join with this setup
+        for thread in list_threads:
+            thread.join()
+        
+        # return data_list
         
 
     '''
@@ -111,6 +151,7 @@ class DataReceiveExtractor:
     def get_all_current_price_data(self, number_threads=10):
         all_current_stocks = self.get_current_tickers()
         self.get_multiple_price_data(all_current_stocks)
+        # self.__thread_get_multiple_price_data(all_current_stocks)
     
     '''
     use yfinance api

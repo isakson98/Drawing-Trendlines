@@ -9,8 +9,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 data_obj = DataReceiveExtractor()
-all_current = data_obj.get_current_tickers()
-print(len(all_current))
+data_obj.get_all_current_price_data()
+
+
+
 
 
 

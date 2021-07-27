@@ -1,3 +1,4 @@
 data/
 __pycache__/
-configurations.py
+credentials.py
+testrun.py

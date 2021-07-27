@@ -45,7 +45,7 @@ class StockScreener:
     central function of the class
     it fetches data from NASDAQ api, given the parameters
     '''
-    def get_current_tickers(self, NYSE=True, NASDAQ=True, AMEX=True, SPACS=False, CLASS_SHARES=False):
+    def retrieve_current_tickers(self, NYSE=True, NASDAQ=True, AMEX=True, SPACS=False, CLASS_SHARES=False):
         exchange_dict = {'nyse':NYSE, 'nasdaq':NASDAQ, 'amex':AMEX}
         for exchange in self._EXCHANGE_LIST:
             if exchange_dict[exchange]:
@@ -93,6 +93,14 @@ class StockScreener:
         return self.tickers_df
 
 
+    def filter_by_marketcap(self, lower_limit, upper_limit):
+        pass
+
+    def filter_by_region(self, region):
+        pass
+
+    def filter_by_sector(self, sector):
+        pass
 
 
 # _SECTORS_LIST = set(['Consumer Non-Durables', 'Capital Goods', 'Health Care',
@@ -266,7 +274,7 @@ if __name__ == '__main__':
 
     screener_obj = StockScreener()
 
-    df = screener_obj.get_current_tickers()
+    df = screener_obj.retrieve_current_tickers()
     print(df.head(10))
 
 #     tickers = get_tickers()
