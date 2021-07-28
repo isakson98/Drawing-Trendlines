@@ -15,9 +15,6 @@ it is slow, limited in options of filtering available, and unreliable,
 as they can shut down the access to the api or modify it's html structure
 
 '''
-# TODO: - keep track of changes in list of current stocks
-#       - add those changes to the delisted list
-#       - invoke the delisted screener 
 class NasdaqStockScreener:
     
     _EXCHANGE_LIST = ['nyse', 'nasdaq', 'amex']
@@ -59,12 +56,9 @@ class NasdaqStockScreener:
 
         self.tickers_df = self.__clean_up_api_return_df(self.tickers_df )
 
-        # print(self.tickers_df.marketCap.head())
-        # print(self.tickers_df.marketCap.apply(type))
-
-
         if CLASS_SHARES == False:
             self.tickers_df = self.__rmv_subclass_shares(self.tickers_df)
+
         if SPACS == False:
             self.tickers_df = self.__rmv_spacs(self.tickers_df)
 
@@ -84,7 +78,11 @@ class NasdaqStockScreener:
         return df
 
     '''
-    
+    params 
+        ticker_df -> dataframe that needs to be cleaned up
+
+    the official data from NASDAQ is messy, there are symbols, and numbers are strings.
+    this function fixes that, as well as replaces empty cells and nans with 0
     '''
     def __clean_up_api_return_df(self, ticker_df):
         # remove signs from columns
@@ -138,16 +136,6 @@ class NasdaqStockScreener:
     def __rmv_empty_volume(self, tickers_df):
         self.ticker_df = tickers_df[tickers_df["volume"] > 0]
         return self.tickers_df
-
-
-    def filter_by_marketcap(self, lower_limit, upper_limit):
-        pass
-
-    def filter_by_region(self, region):
-        pass
-
-    def filter_by_sector(self, sector):
-        pass
     
     '''
     params
@@ -174,9 +162,17 @@ class NasdaqStockScreener:
         # make it compatible with delisted tickers
         delisted_tickers = pd.concat([delisted_tickers, new_old_stocks_df])
 
-        print(delisted_tickers.sample(20))
-
         return delisted_tickers 
+
+
+    def filter_by_marketcap(self, lower_limit, upper_limit):
+        pass
+
+    def filter_by_region(self, region):
+        pass
+
+    def filter_by_sector(self, sector):
+        pass
 
 
 

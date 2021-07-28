@@ -131,9 +131,7 @@ class DataManager:
             deslisted_tix_path = os.path.join(self.watchlists_path, "delisted_tickers")
             deslisted_tix_path = os.path.join(deslisted_tix_path, delisted_file)
             delisted_tickers = pd.read_csv(deslisted_tix_path)
-            print(len(outdated_tickers))
-            print(len(new_tickers))
-
+            
             new_delisted_tickers = self.screener.update_delisted_stocks(delisted_tickers, outdated_tickers, new_tickers)
         
             if len(new_delisted_tickers) > 0:
