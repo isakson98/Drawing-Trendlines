@@ -2,6 +2,7 @@ import pandas as pd
 from enum import Enum
 import io
 import requests
+import datetime
 
 '''
 This class retrieves stock data from Nasdaq's API
@@ -14,7 +15,10 @@ it is slow, limited in options of filtering available, and unreliable,
 as they can shut down the access to the api or modify it's html structure
 
 '''
-class StockScreener:
+# TODO: - keep track of changes in list of current stocks
+#       - add those changes to the delisted list
+#       - invoke the delisted screener 
+class NasdaqStockScreener:
     
     _EXCHANGE_LIST = ['nyse', 'nasdaq', 'amex']
 
@@ -53,6 +57,12 @@ class StockScreener:
                 cur_exch_tickers_df = self.__fetch_from_exchange(exchange)
                 self.tickers_df = pd.concat([self.tickers_df, cur_exch_tickers_df])
 
+        self.tickers_df = self.__clean_up_api_return_df(self.tickers_df )
+
+        # print(self.tickers_df.marketCap.head())
+        # print(self.tickers_df.marketCap.apply(type))
+
+
         if CLASS_SHARES == False:
             self.tickers_df = self.__rmv_subclass_shares(self.tickers_df)
         if SPACS == False:
@@ -72,6 +82,29 @@ class StockScreener:
         data = r.json()['data']
         df = pd.DataFrame(data['rows'], columns=data['headers'])
         return df
+
+    '''
+    
+    '''
+    def __clean_up_api_return_df(self, ticker_df):
+        # remove signs from columns
+        ticker_df["lastsale"] = ticker_df["lastsale"].map(lambda x: x.lstrip("$"))
+        ticker_df["pctchange"] = ticker_df["pctchange"].map(lambda x: x.rstrip("%"))
+
+        columns_that_need_float = ["lastsale", "netchange", "pctchange", "marketCap"]
+        dict_to_float = {column : 'float64' for column in columns_that_need_float}
+        columns_that_need_int = ["ipoyear", "volume"]
+        dict_to_int = {column : 'int64' for column in columns_that_need_int}
+
+        all_cols_wit_nums = columns_that_need_float.extend(columns_that_need_int)
+        ticker_df.replace(to_replace=[None], value=0, inplace=True)
+        ticker_df.replace(to_replace=[""], value=0, inplace=True)
+
+        # converting given columns to ints or floats
+        ticker_df = ticker_df.astype(dict_to_float)
+        ticker_df = ticker_df.astype(dict_to_int)
+
+        return ticker_df
 
     '''
     parameter -> cur_tickers_df (must contain column "symbol")
@@ -115,6 +148,36 @@ class StockScreener:
 
     def filter_by_sector(self, sector):
         pass
+    
+    '''
+    params
+        delisted_tickers -> from the delisted folder
+        outdated_tickers -> from the old current_tickers file
+        new_tickers -> from the newly fetched API call
+
+    returns
+        delisted_tickers -> updated df with delisted stocks
+    '''
+    def update_delisted_stocks(self, delisted_tickers, outdated_tickers, new_tickers):
+        outdate_list = outdated_tickers["symbol"].tolist()
+        new_list = new_tickers["symbol"].tolist()
+        # find difference between new and outdated tickers
+        old_stocks = list(set(outdate_list) - set(new_list))
+
+        # no new tickers found
+        if len(old_stocks) == 0:
+            return old_stocks
+
+        new_old_stocks_df = outdated_tickers[outdated_tickers["symbol"].isin(old_stocks)]
+        new_old_stocks_df["date"] = datetime.date.today()
+
+        # make it compatible with delisted tickers
+        delisted_tickers = pd.concat([delisted_tickers, new_old_stocks_df])
+
+        print(delisted_tickers.sample(20))
+
+        return delisted_tickers 
+
 
 
 # _SECTORS_LIST = set(['Consumer Non-Durables', 'Capital Goods', 'Health Care',
@@ -286,7 +349,7 @@ class StockScreener:
 
 if __name__ == '__main__':
 
-    screener_obj = StockScreener()
+    screener_obj = NasdaqStockScreener()
 
     df = screener_obj.retrieve_current_tickers()
     print(df.head(10))

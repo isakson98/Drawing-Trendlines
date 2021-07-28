@@ -1,4 +1,4 @@
-from DataReceiveExtractor import DataReceiveExtractor
+from DataReceiveExtractor import DataManager
 
 from LinearReg_Trendline import Trendline_Drawing
 
@@ -8,9 +8,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import pandas as pd
 
-data_obj = DataReceiveExtractor()   
-# df = data_obj.get_daily_price_data("PLUG")
-# print(df.head(10))
+data_obj = DataManager()   
 data_obj.get_all_current_price_data()
 
 
