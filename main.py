@@ -8,8 +8,20 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import pandas as pd
 
-data_obj = DataManager()   
-data_obj.get_all_current_price_data()
+import time
+
+data_obj = DataManager() 
+
+start = time.time()
+params = {'multiplier' : 1, 'timeframe' : 'day'}
+data_obj.get_all_current_price_data(params)
+end = time.time()
+
+total = end - start
+print(f"Finished in {total} seconds")
+
+# params["name"] = "tsla"
+# data_obj.get_price_data(params)
 
 
 

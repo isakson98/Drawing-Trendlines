@@ -10,6 +10,9 @@ import threading
 # requests to exchanges
 from StockScreener import NasdaqStockScreener
 
+from credentials import polygon_key
+from polygon import RESTClient
+
 '''
 -> DATA 
 features / ideas:
@@ -56,6 +59,8 @@ class DataManager:
 
     screener = NasdaqStockScreener()
 
+    lock = threading.Lock()
+
     '''
     params
         file_path -> path to file to be renamed
@@ -87,7 +92,6 @@ class DataManager:
         timestamp_creation = os.stat(path).st_ctime
         creation_date = dt.datetime.fromtimestamp(timestamp_creation)
         string_v = creation_date.strftime("%d-%b-%Y")
-        print(string_v)
         return creation_date, string_v
 
     '''
@@ -99,6 +103,8 @@ class DataManager:
     Current stocks from: NYSE, NASDAQ, AMEX, no spacs, no tickers with 0 volume for that day
 
     Function gets new list of tickers if there is no previous record or prev file is too old
+
+    returns: list of current tickers
     '''
     def get_current_tickers(self, recency=10, force=False):
         current_tix_file_name = "all_current_tickers.csv"
@@ -131,7 +137,7 @@ class DataManager:
             deslisted_tix_path = os.path.join(self.watchlists_path, "delisted_tickers")
             deslisted_tix_path = os.path.join(deslisted_tix_path, delisted_file)
             delisted_tickers = pd.read_csv(deslisted_tix_path)
-            
+
             new_delisted_tickers = self.screener.update_delisted_stocks(delisted_tickers, outdated_tickers, new_tickers)
         
             if len(new_delisted_tickers) > 0:
@@ -143,60 +149,105 @@ class DataManager:
     '''
     params:
         ticker_name -> ticker to fetch the data of
-        params -> parameters used for the api call
+        params -> dict of arguments for the API call. MUST HAVE these keys -> name, ticker, multiplier, timeframe
         update -> True if you want to get the most recent data
 
     Using Polygon client library to get data
-    Naming standard -> ex. "TICKER_timeframe.csv" -> "AMC_d.csv"
+    Naming standard -> ex. "TICKER_multiplier_timeframe.csv" -> "AMC_1_day.csv"
+    timeframe -> minute, hour, day, week, month, quarter, year
+    params: dict with
+
+    returns dataframe of ticker demanded
     '''
-    # instead of timeframe as parameter, think of using a container "params"
-    # TODO: make this compatible with update
-    # what can go into params -> timeframe="d", from="", to="",
-    def get_price_data(self, ticker_name, params, update=False):
+    def get_price_data(self, params, update=False):
+
+        ticker_name = params["name"]
 
         # organize path
         ticker_name = ticker_name.upper()
-        file_name = ticker_name + "_" + params["timeframe"] + ".csv"
-        file_path = os.path.join(self.raw_price_path, params["timeframe"])
+        folder_name = f"{params['multiplier']}_{params['timeframe']}"
+        file_name = f"{ticker_name}_{folder_name}.csv"
+        file_path = os.path.join(self.raw_price_path, folder_name)
         file_path = os.path.join(file_path, file_name)
 
-        # check existing
+        data = pd.DataFrame()
+        # if exists read the file
         if os.path.exists(file_path):
             print(f"{ticker_name} already downloaded")
             data = pd.read_csv(file_path)
-            data["date"] = pd.to_datetime(data["date"])
             if update:
-                data["date"]
-            return data
-        
+                # todo -> no column date in the field only epoch time
+                data["date"] = pd.to_datetime(data["date"])
+                last_date_read = data.at(-1, "date")
+
+        # if doesn't exist or needs to updated, make an appropriate API call
         if update or not os.path.exists(file_path) :
-            # TODO: download data here
-            data.to_csv(file_path)
-            data = data.reset_index()
+            with RESTClient(polygon_key) as client:
+                current_date_dt = dt.date.today()
+                current_date_str = current_date_dt.strftime("%Y-%m-%d")
+                from_ = last_date_read if update else "1900-01-01" #either earliest or next needed date
+
+                resp = client.stocks_equities_aggregates(ticker=ticker_name, 
+                                                         multiplier=params["multiplier"], 
+                                                         timespan=params["timeframe"],
+                                                         from_= from_,
+                                                         to=current_date_str) 
+               
+                if resp.resultsCount > 0:
+                    data = pd.DataFrame(resp.results)
+                else:
+                    self.lock.acquire()
+                    print(f"{ticker_name} could not be found on Polygon")
+                    self.lock.release()
+            
+            # TODO
+            # merge with existing data, save updated data in csv
+            # may have to do additional processing? date conversion, additional data added (rsi?)
+            if update:
+                print("WRITE THE UPDATE CODE")
+                quit()
+
+            data.to_csv(file_path, index=False)
 
         return data
-
 
     '''
     params:
         list_tickers -> a segment of tickers, alloted to a particular thread
+        params -> getting passed down from a few functions above, params for the Polygon API call
+        update -> whether we are adding values to existing tickers or nah
 
     thread helper function for get_multiple_price_data()
+    IMPORTANT to note that we are adding name key to the params dictionary here.
+    Otherwise, get_price_data() will fail without having a string ticker as a param 
     
     '''
-    def __thread_get_multiple_price_data(self, list_tickers, params):
+    def __thread_get_multiple_price_data(self, list_tickers, params, update):
         
         data_list = dict()
-        for ticker in list_tickers:
-            data_list[ticker] = self.get_price_data(ticker, params)
-        return data_list
- 
+        for index, ticker in enumerate(list_tickers):
+            params["name"] = ticker
+            data_list[ticker] = self.get_price_data(params, update)
+            if index % 100 == 0:
+                self.lock.acquire()
+                print(f"A thread retrieved {index} files")
+                self.lock.release()
+        
+        
 
     '''
+    params:
+        list_tickers -> list of tickers you need data for
+        params -> Polygon API essential arguments, do not need to add name here
+        update -> True/False, whether you are trying to update the data or retrieve new
+
     function to use if you want to retrieve data from more than one stock
     each thread works on a section of the list that needs to be downloaded
+    this function uses helper thread function, which it gives a portion of tickers to
+    from the main list of tickers.
+
     '''
-    def get_multiple_price_data(self, list_tickers, params={"timeframe":"d"}, number_threads=10):
+    def get_multiple_price_data(self, list_tickers, params, update, number_threads=15):
         
         # in case there are less ticker symbols than threads given
         if len(list_tickers) < number_threads:
@@ -216,32 +267,42 @@ class DataManager:
 
             t = threading.Thread(
                                  target=self.__thread_get_multiple_price_data, 
-                                 args=(list_tickers[start_ind:end_ind], params)
+                                 args=(list_tickers[start_ind:end_ind], params, update)
                                  )
             list_threads.append(t)
             t.start()
 
         # wait for threads to finish
-        for thread in list_threads:
+        for index, thread in enumerate(list_threads):
             thread.join()
                 
 
     '''
+    params:
+        params -> arguments for the Polygon API call (also determines what data you are dealing with, what folder, etc)
+        number_threads -> 10 by default
+
     this function can be used for the initial startup of the project
+    it gets the current tickers list, and downloads data for them
     '''
-    def get_all_current_price_data(self, number_threads=10, force=False):
-        all_current_stocks = self.get_current_tickers(force=force)
-        self.get_multiple_price_data(all_current_stocks)
+    def get_all_current_price_data(self, params, number_threads=10, force=False):
+        all_current_stocks = self.get_current_tickers(force)
+        self.get_multiple_price_data(all_current_stocks, params, update=False)
     
     '''
+    params:
+        params ->  arguments for the Polygon API call (also determines what data you are dealing with, what folder, etc)
+
     updating price data also involves knowing which stocks are actually still current
     after finding which stocks are current, this function find the last date on file
     and appends newly retrieved data for the file
+
+    in this function, we set "force=True" for "self.get_current_tickers()" 
+    since we are updating and want the freshest data.
     '''
-    def update_price_data(self, ticker):
+    def update_price_data(self, params):
         all_current_stocks = self.get_current_tickers(force=True)
-        self.get_multiple_price_data(all_current_stocks)
-        pass
+        self.get_multiple_price_data(all_current_stocks, update=True)
     
     def get_fundies_data(self):
         pass

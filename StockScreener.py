@@ -112,7 +112,7 @@ class NasdaqStockScreener:
     Reason: these are difficult to clean up
     '''
     def __rmv_subclass_shares(self, cur_tickers_df):
-        df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains("\.|\^")]
+        df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains("\.|\^|\/")]
         return df_filtered
 
     '''
