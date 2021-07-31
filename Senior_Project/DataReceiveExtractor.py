@@ -144,8 +144,10 @@ class DataManager:
 
         return new_tickers
 
+    '''
+    gets you delisted tickers
+    '''
     def get_delisted_tickers(self):
-
         delisted_file = "all_delisted_tickers.csv"
         deslisted_tix_path = os.path.join(self.watchlists_path, "delisted_tickers")
         deslisted_tix_path = os.path.join(deslisted_tix_path, delisted_file)
@@ -294,7 +296,7 @@ class DataManager:
     def get_all_current_price_data(self, params, number_threads=10, force=False):
         all_current_stocks_df = self.get_current_tickers(force)
         all_current_stocks_list = all_current_stocks_df["symbol"].tolist()
-        self.get_multiple_price_data(all_current_stocks, params, update=False)
+        self.get_multiple_price_data(all_current_stocks_list, params, update=False)
     
     '''
     params:

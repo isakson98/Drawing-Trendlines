@@ -1,3 +1,20 @@
+'''
+
+if new type of data arrives -> manually create a folder or reorganize stuff
+then give the location to DataReceiveExtractor class
+
+need some kind of structure that verifies the data directories
+
+
+THIS OF THIS AS A CLIENT SPACE.
+This is the researcher ground.
+This is where you are going to request and write stuff and ask for analysis
+Do not delegate everything to library classes, as this overfits stuff (no hard coding)
+
+
+'''
+
+
 from DataReceiveExtractor import DataManager
 
 from LinearReg_Trendline import Trendline_Drawing
