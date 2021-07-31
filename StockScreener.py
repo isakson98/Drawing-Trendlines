@@ -4,6 +4,62 @@ import io
 import requests
 import datetime
 
+
+'''
+ScreenerProcessor class used to clean up lists of stocks 
+
+This is used now to clean up incoming data from the Nasdaq API call
+and to clean delisted stocks.
+'''
+class ScreenerProcessor:
+    '''
+    parameter -> cur_tickers_df (must contain column "symbol")
+    this function filters out rows where a symbol has "." in it,
+    like BRK.A or BRK.B
+
+    Reason: these are difficult to clean up
+    '''
+    def rmv_subclass_shares(self, cur_tickers_df):
+        df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains("\.|\^|\/|\-")]
+        return df_filtered
+
+    '''
+    parameter -> cur_tickers_df (must contain column "name")
+    this function filters out rows where a name has "Acquisition" in it
+
+    Reason: acquisition implies this is a SPAC, which usually do not follow
+    technical analysis well (when they hover around 10 dollars without momentum)
+    This function also removes warrants.
+    '''
+    def rmv_spacs(self, tickers_df):
+        tickers_df = tickers_df[~tickers_df['name'].str.contains("acquisition", case=False, regex=False)]
+        return tickers_df
+
+    '''
+    parameter -> cur_tickers_df (must contain column "name")
+    this function filters out rows where a name has "Acquisition" in it
+
+    Reason: similar reason to spacs, these are repetitive instruments
+    '''
+    def rmv_financial_instruments(self, tickers_df):
+        tickers_df = tickers_df[~tickers_df['name'].str.contains("index", case=False, regex=False)]
+        tickers_df= tickers_df[~tickers_df['name'].str.contains("trust", case=False, regex=False)]
+        tickers_df= tickers_df[~tickers_df['name'].str.contains("etf", case=False, regex=False)]
+        tickers_df = tickers_df[~tickers_df['name'].str.contains("etn", case=False, regex=False)]
+        tickers_df = tickers_df[~tickers_df['name'].str.contains("fund", case=False, regex=False)]
+        return tickers_df
+
+    '''
+    parameter -> cur_tickers_df (must contain column "volume")
+    this function filters out rows where volume is 0.
+
+    Reason: these are warrants and greatly unnecessary tickers.
+    '''
+    def rmv_empty_volume(self, tickers_df):
+        tickers_df = tickers_df[tickers_df["volume"] > 0]
+        return tickers_df
+
+
 '''
 This class retrieves stock data from Nasdaq's API
 
@@ -14,8 +70,10 @@ Although it is possible to filter using Nasdaq's API as well,
 it is slow, limited in options of filtering available, and unreliable,
 as they can shut down the access to the api or modify it's html structure
 
+it is a child class of stock screener
+
 '''
-class NasdaqStockScreener:
+class NasdaqStockScreener(ScreenerProcessor):
     
     _EXCHANGE_LIST = ['nyse', 'nasdaq', 'amex']
 
@@ -57,18 +115,23 @@ class NasdaqStockScreener:
         self.tickers_df = self.__clean_up_api_return_df(self.tickers_df )
 
         if CLASS_SHARES == False:
-            self.tickers_df = self.__rmv_subclass_shares(self.tickers_df)
+            self.tickers_df = self.rmv_subclass_shares(self.tickers_df)
 
         if SPACS == False:
-            self.tickers_df = self.__rmv_spacs(self.tickers_df)
+            self.tickers_df = self.rmv_spacs(self.tickers_df)
 
-        self.tickers_df = self.__rmv_empty_volume(self.tickers_df)
+        self.tickers_df = self.rmv_empty_volume(self.tickers_df)
 
         return self.tickers_df
 
     '''
+    params
+        exchange -> specifying which exchange to get stocks from
+
     Given the exchange as the parameter,
     This function makes an API call to NASDAQ database to retrieve stocks from the underlying exchange
+
+    returns a DataFrame of stocks and their info
     '''
     def __fetch_from_exchange(self, exchange):
         param_list = self.params(exchange)
@@ -104,38 +167,7 @@ class NasdaqStockScreener:
 
         return ticker_df
 
-    '''
-    parameter -> cur_tickers_df (must contain column "symbol")
-    this function filters out rows where a symbol has "." in it,
-    like BRK.A or BRK.B
-
-    Reason: these are difficult to clean up
-    '''
-    def __rmv_subclass_shares(self, cur_tickers_df):
-        df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains("\.|\^|\/")]
-        return df_filtered
-
-    '''
-    parameter -> cur_tickers_df (must contain column "name")
-    this function filters out rows where a name has "Acquisition" in it
-
-    Reason: acquisition implies this is a SPAC, which usually do not follow
-    technical analysis well (when they hover around 10 dollars without momentum)
-    This function also removes warrants.
-    '''
-    def __rmv_spacs(self, tickers_df):
-        self.tickers_df = tickers_df[~tickers_df['name'].str.contains("acquisition", case=False, regex=False)]
-        return self.tickers_df
-
-    '''
-    parameter -> cur_tickers_df (must contain column "volume")
-    this function filters out rows where volume is 0.
-
-    Reason: these are warrants and greatly unnecessary tickers.
-    '''
-    def __rmv_empty_volume(self, tickers_df):
-        self.ticker_df = tickers_df[tickers_df["volume"] > 0]
-        return self.tickers_df
+    
     
     '''
     params
@@ -173,6 +205,7 @@ class NasdaqStockScreener:
 
     def filter_by_sector(self, sector):
         pass
+
 
 
 

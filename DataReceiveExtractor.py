@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 
 # requests to exchanges
-from StockScreener import NasdaqStockScreener
+from StockScreener import NasdaqStockScreener, ScreenerProcessor
 
 from credentials import polygon_key
 from polygon import RESTClient
@@ -58,6 +58,7 @@ class DataManager:
     watchlists_path = os.path.join(dirname, "data\\watchlists")
 
     screener = NasdaqStockScreener()
+    processor = ScreenerProcessor()
 
     lock = threading.Lock()
 
@@ -133,10 +134,7 @@ class DataManager:
             new_tickers = self.screener.retrieve_current_tickers()
             new_tickers.to_csv(current_tix_path, index=False)
 
-            delisted_file = "all_delisted_tickers.csv"
-            deslisted_tix_path = os.path.join(self.watchlists_path, "delisted_tickers")
-            deslisted_tix_path = os.path.join(deslisted_tix_path, delisted_file)
-            delisted_tickers = pd.read_csv(deslisted_tix_path)
+            delisted_tickers = self.get_delisted_tickers()
 
             new_delisted_tickers = self.screener.update_delisted_stocks(delisted_tickers, outdated_tickers, new_tickers)
         
@@ -144,7 +142,16 @@ class DataManager:
                 self.__add_date_to_file_name(deslisted_tix_path)
                 new_delisted_tickers.to_csv(deslisted_tix_path, index=False)
 
-        return new_tickers["symbol"].tolist()
+        return new_tickers
+
+    def get_delisted_tickers(self):
+
+        delisted_file = "all_delisted_tickers.csv"
+        deslisted_tix_path = os.path.join(self.watchlists_path, "delisted_tickers")
+        deslisted_tix_path = os.path.join(deslisted_tix_path, delisted_file)
+        delisted_tickers = pd.read_csv(deslisted_tix_path)
+        return delisted_tickers
+
 
     '''
     params:
@@ -176,9 +183,8 @@ class DataManager:
             print(f"{ticker_name} already downloaded")
             data = pd.read_csv(file_path)
             if update:
-                # todo -> no column date in the field only epoch time
-                data["date"] = pd.to_datetime(data["date"])
-                last_date_read = data.at(-1, "date")
+                # TODO -> no column date in the field only epoch time
+                last_date_read = data.at(-1, "t")
 
         # if doesn't exist or needs to updated, make an appropriate API call
         if update or not os.path.exists(file_path) :
@@ -286,7 +292,8 @@ class DataManager:
     it gets the current tickers list, and downloads data for them
     '''
     def get_all_current_price_data(self, params, number_threads=10, force=False):
-        all_current_stocks = self.get_current_tickers(force)
+        all_current_stocks_df = self.get_current_tickers(force)
+        all_current_stocks_list = all_current_stocks_df["symbol"].tolist()
         self.get_multiple_price_data(all_current_stocks, params, update=False)
     
     '''
