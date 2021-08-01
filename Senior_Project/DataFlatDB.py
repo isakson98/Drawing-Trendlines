@@ -30,13 +30,14 @@ class DataFlatDB:
 
     root_data_dir = os.path.dirname(__file__)
     dir_operated_on = None
+    suffix = None
 
     '''
     params:
         dir_list_to_operate_in -> list of top-down directories that lead to the one you want to work on
 
     it is intended to use an object of this class to operate on one directory
-    at a time. Use two of these objects if you have simultenous tasks. 
+    at a time. Use two of these objects if you have simultenous directories you are working on. 
     '''
     def __init__(self, dir_list_to_operate_in : list):
         self.change_dir(dir_list_to_operate_in)
@@ -44,41 +45,6 @@ class DataFlatDB:
     ###################
     # Private Methods #
     ###################
-
-    '''
-    params:
-        list_dir -> list of directories in top-down order for concatenation
-
-    helper function used in all functions available to the user of this class
-    this function concatonates the given elements in the list 
-
-    returns:
-        string_path -> the full path given 
-    '''
-    def __merge_path_content(self, list_dir : list) -> str:
-        # asterisk before list expands list into number of elements it has
-        string_path = os.path.join(self.root_data_dir, *list_dir)
-
-        # string_path = self.root_data_dir
-        # for dir in list_dir:
-        #     string_path = os.path.join(string_path, dir)
-
-        return string_path
-
-    '''
-    params:
-        string_path -> the path given to verify
-
-    this function is used before operating on existing files
-    to verify that the file actually exists
-
-    returns:
-        boolean -> True if file exists / False otherwise
-    '''
-    def __verify_path_existence(self, string_path : str):
-
-        if not os.path.exists(string_path):
-            raise ValueError(f'{string_path} does not exist! Reexamine the path')
 
     '''
     params
@@ -104,6 +70,34 @@ class DataFlatDB:
 
     '''
     params:
+        file_name -> name of the file to have an operation on
+
+    helper function that creates the suffix of the file, based on 
+    where the file is located. Builds two 
+
+    if price/1_day/file_name, file_name must have price_1_day as suffix of the name
+
+    '''
+    def __create_file_suffix(self, ext=".csv", depth=2):
+
+        suffix_parts = list()
+        rest = self.dir_operated_on
+        for count in range(depth):
+            rest, current_dir = os.path.split(rest)
+            # we want to stop before adding data to sufix
+            if current_dir == "data":
+                break
+            suffix_parts.append(current_dir)
+
+        suffix_parts.reverse()
+        suffix = "_".join(suffix_parts)
+        suffix = "_" + suffix + ext
+        self.suffix = suffix
+
+        return True
+
+    '''
+    params:
         path -> path of the file
 
     helper function that fetches the creation date of the file
@@ -119,67 +113,106 @@ class DataFlatDB:
         string_v = creation_date.strftime("%d-%b-%Y")
         return [creation_date, string_v]
 
+    '''
+    params:
+        list_dir -> list of directories in top-down order for concatenation
+
+    helper function used in all functions available to the user of this class
+    this function concatonates the given elements in the list 
+
+    returns:
+        string_path -> the full path given 
+    '''
+    def __merge_path_content(self, list_dir : list) -> str:
+        # asterisk before list expands list into number of elements it has
+        string_path = os.path.join(self.root_data_dir, *list_dir)
+
+        return string_path
+
+    '''
+    params:
+        string_path -> the path given to verify
+
+    this function is used before operating on existing files
+    to verify that the file actually exists
+
+    returns:
+        boolean -> True if file exists / False otherwise
+    '''
+    def __verify_path_existence(self, string_path : str):
+
+        if not os.path.exists(string_path):
+            return False
+
+        return True
+
     ##################
     # Public Methods #
     ##################
 
     '''
     params:
-        name_of_file -> name of the file to be added
+        root_name_file -> name of the file to be added
         content_to_add -> content of this new file
 
     one of core functions of this class. use this function to create new files
     '''
-    def add_data(self, name_of_file : str, content_to_add : pd.DataFrame):
-        full_path = self.__merge_path_content([self.dir_operated_on, name_of_file])
+    def add_data(self, root_name_file : str, content_to_add : pd.DataFrame):
+        full_name = root_name_file + self.suffix
+        full_path = self.__merge_path_content([self.dir_operated_on, full_name])
+        exists = self.__verify_path_existence(full_path)
+        if exists:
+            raise ValueError("This file already exists")
         content_to_add.to_csv(full_path, index=False)
 
     '''
     params:
-        name_of_file -> name of the file to be added
+        full_file_name -> name of the file to be added
         content_to_add -> content of this new file
         keep_old -> boolean, if yes, existing old data will be kept but renamed, with date added
     '''
-    def update_data(self, name_of_file, content_to_add, keep_old):
-        full_path = self.__merge_path_content([self.dir_operated_on, name_of_file])
+    def update_data(self, full_file_name, content_to_add, keep_old):
+        full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
         if keep_old:
             self.__add_date_to_file_name(full_path)
 
     '''
-    params:
-        name_of_file -> name of file you want data of
 
-    if no files is given, you return everything containing in that folder
+    you returns everything containing in that folder
 
     TODO: think of using processes to split up the work, use a generator/yield as a client
+
+    return
+        big_list list of dataframes in the folder
     '''
     def retrieve_all(self) -> pd.DataFrame():
         big_list = list()
         for file_name in os.listdir(self.dir_operated_on):
-            big_list.append(self.retrieve(file_name))
+            big_list.append(self.retrieve_data(file_name))
         return big_list
 
     '''
     params:
-        name_of_file -> name of file you want data of
+        full_file_name -> root name of file you want data of + suffix will be appended
 
     if no files is given, you return everything containing in that folder
 
     TODO: think of using processes to split up the work, use a generator/yield as a client
     '''
-    def retrieve(self, name_of_file="") -> pd.DataFrame():
-        full_path = self.__merge_path_content(self.dir_operated_on, name_of_file)
+    def retrieve_data(self, full_file_name) -> pd.DataFrame():
+        full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
         return pd.read_csv(full_path)
 
     '''
     params:
-        name_of_file -> name of file you want data of
+        full_file_name -> name of file you want data of
 
     this function deletes a file (if that ever becomes necessary)
     '''
-    def remove(self, name_of_file):
-        full_path = self.__merge_path_content(self.dir_operated_on, name_of_file)
+    def remove(self, full_file_name):
+        full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
         os.remove(full_path)
+        return True
 
     '''
     params:
@@ -197,22 +230,9 @@ class DataFlatDB:
     '''
     def change_dir(self, dir_list_to_operate_in : list):
         str_dir = self.__merge_path_content(dir_list_to_operate_in)
-        self.__verify_path_existence(str_dir)
+        if not self.__verify_path_existence(str_dir):
+            raise ValueError(f'{str_dir} does not exist! Reexamine the path')
         self.dir_operated_on = str_dir
+        self.__create_file_suffix()
         return str_dir
-
-
-    '''
-    params:
-        file_name -> name of the file to have an operation on
-
-    helper function that verifies that the name of the file matches
-    the directory it is in and parent directory of the directory it is in.
-
-    if price/1_day/file_name, file_name must have price_1_day as suffix of the name
-
-    '''
-    def create_filename_standard(self, file_name, ext="csv"):
-
-        return True
 
