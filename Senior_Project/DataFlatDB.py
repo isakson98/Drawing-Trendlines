@@ -1,7 +1,6 @@
 import os
 import datetime as dt
 import pandas as pd
-from pandas.core.frame import DataFrame
 
 
 '''
@@ -156,26 +155,46 @@ class DataFlatDB:
         content_to_add -> content of this new file
 
     one of core functions of this class. use this function to create new files
+
+    returns:
+        True/False -> True if write was successful
     '''
-    def add_data(self, root_name_file : str, content_to_add : pd.DataFrame):
+    def add_data(self, root_name_file : str, content_to_add : pd.DataFrame, default_suffix=True):
         full_name = root_name_file + self.suffix
         full_path = self.__merge_path_content([self.dir_operated_on, full_name])
         exists = self.__verify_path_existence(full_path)
         if exists:
-            raise ValueError("This file already exists")
+            return False
         content_to_add.to_csv(full_path, index=False)
+        return True
 
     '''
     params:
         full_file_name -> name of the file to be added
-        content_to_add -> content of this new file
+        content_to_add -> full content of this new file
         keep_old -> boolean, if yes, existing old data will be kept but renamed, with date added
+
+    With entire df as parameter, update_data() saves to file name given.
+    Unlike adding, this function also has a feature of keeping the old content of the file
+    by renaming it, adding the date the file was originally created (useful for watchlists)
+
+    returns:
+        True/False -> True if write was successful
     '''
     def update_data(self, full_file_name, content_to_add, keep_old):
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
+        exists = self.__verify_path_existence(full_path)
+        if not exists:
+            return False
+
         if keep_old:
+            # "frees up" space for new data to take up this file name
             self.__add_date_to_file_name(full_path)
 
+        content_to_add.to_csv(full_path)
+
+        return True
+        
     '''
 
     you returns everything containing in that folder
@@ -185,11 +204,8 @@ class DataFlatDB:
     return
         big_list list of dataframes in the folder
     '''
-    def retrieve_all(self) -> pd.DataFrame():
-        big_list = list()
-        for file_name in os.listdir(self.dir_operated_on):
-            big_list.append(self.retrieve_data(file_name))
-        return big_list
+    def retrieve_all_file_names(self) -> pd.DataFrame():
+        return os.listdir(self.dir_operated_on)
 
     '''
     params:
@@ -197,7 +213,8 @@ class DataFlatDB:
 
     if no files is given, you return everything containing in that folder
 
-    TODO: think of using processes to split up the work, use a generator/yield as a client
+    returns:
+        dict -> path ->full path to file, data
     '''
     def retrieve_data(self, full_file_name) -> pd.DataFrame():
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])

@@ -39,7 +39,7 @@ class Test_DataFlatDB(unittest.TestCase):
         dir_top_down = ["data", "raw", "price", "1_week"]
         file_to_add = "add_dummy_file"
         sample_df = pd.DataFrame(np.random.randint(0,100,size=(100, 4)), columns=list('ABCD'))
-        
+
         # specify which directory you'll be working on 
         good_obj = DataFlatDB(dir_top_down)
         # only give root of what you are adding + suffix will be added automatically
