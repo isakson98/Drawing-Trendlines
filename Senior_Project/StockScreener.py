@@ -120,7 +120,7 @@ class NasdaqStockScreener(ScreenerProcessor):
         if SPACS == False:
             self.tickers_df = self.rmv_spacs(self.tickers_df)
 
-        self.tickers_df = self.rmv_empty_volume(self.tickers_df)
+        # self.tickers_df = self.rmv_empty_volume(self.tickers_df)
 
         return self.tickers_df
 
@@ -164,6 +164,10 @@ class NasdaqStockScreener(ScreenerProcessor):
         # converting given columns to ints or floats
         ticker_df = ticker_df.astype(dict_to_float)
         ticker_df = ticker_df.astype(dict_to_int)
+
+        # remove spaces in symbol names (saw it a couple of times)
+        ticker_df["symbol"] = ticker_df["symbol"].str.strip()
+   
 
         return ticker_df
 

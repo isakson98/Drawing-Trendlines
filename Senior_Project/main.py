@@ -15,48 +15,20 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 '''
 # man made
 from popular_paths import popular_paths
-from DataFlatDB import DataFlatDB
-from DataDownload import DataDownload
-from LinearReg_Trendline import Trendline_Drawing
-from Visualize import visualize_ticker
+from FlatDBmodification import FlatDBmodification
+
 # robot made
 import datetime as dt
 import matplotlib.pyplot as plt
 import pandas as pd
-import time
+
+refresh_obj = FlatDBmodification()
+# refresh_obj.update_current_ticker_list()
 
 
-# 1. retrieve list of current symbols
-dir_data_obj = DataFlatDB(popular_paths["current tickers"])
-current_df = dir_data_obj.retrieve_data("all_current_tickers.csv")
-list_curr_tickers = current_df["symbol"].tolist()
-
-# 2. download data and add it to csv
-# one caveat with the current method: there is no verfication
-# that you are downloading the right thing into the right folder
-dir_data_obj.change_dir(popular_paths["historical 1 week"])
-downloader = DataDownload()
-multiplier = 1
-timespan = "week"
-for ticker in list_curr_tickers:
-    new_df = downloader.dwn_price_data(ticker=ticker,
-                                       multiplier=multiplier,
-                                       timespan=timespan)
-    dir_data_obj.add_data(ticker, new_df)
-
-    
-
-
-
-# data_obj = DataManager() 
-# start = time.time()
-# params = {'multiplier' : 1, 'timeframe' : 'day'}
-# data_obj.get_all_current_price_data(params)
-# end = time.time()
-# total = end - start
-# print(f"Finished in {total} seconds")
-
-
+params = popular_paths['historical 1 day']["params"]
+dir_list = popular_paths['historical 1 day']["dir_list"]
+refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
 
 # ---------------------------- TRENDLINE MATERIAL --------------------------------- #

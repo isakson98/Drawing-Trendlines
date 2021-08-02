@@ -109,8 +109,9 @@ class DataFlatDB:
 
         timestamp_creation = os.stat(path).st_ctime
         creation_date = dt.datetime.fromtimestamp(timestamp_creation)
-        string_v = creation_date.strftime("%d-%b-%Y")
-        return [creation_date, string_v]
+        today_date = dt.date.today()
+        string_v = today_date.strftime("%d-%b-%Y")
+        return [today_date, string_v]
 
     '''
     params:
@@ -191,7 +192,7 @@ class DataFlatDB:
             # "frees up" space for new data to take up this file name
             self.__add_date_to_file_name(full_path)
 
-        content_to_add.to_csv(full_path)
+        content_to_add.to_csv(full_path, index=False)
 
         return True
         
@@ -218,7 +219,12 @@ class DataFlatDB:
     '''
     def retrieve_data(self, full_file_name) -> pd.DataFrame():
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
-        return pd.read_csv(full_path)
+        df = pd.DataFrame()
+        try : 
+            df = pd.read_csv(full_path)
+        except:
+            print(f"{full_file_name} was not found")
+        return df
 
     '''
     params:

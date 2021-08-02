@@ -37,14 +37,14 @@ class DataDownload:
         ticker = ticker.upper()
         data = pd.DataFrame()
         with RESTClient(polygon_key) as client:
-                resp = client.stocks_equities_aggregates(ticker=ticker, 
-                                                         multiplier=multiplier, 
-                                                         timespan=timespan,
-                                                         from_= from_,
-                                                         to=to) 
-               
-                if resp.resultsCount > 0:
-                    data = pd.DataFrame(resp.results)
-        return data
+            resp = client.stocks_equities_aggregates(ticker=ticker, 
+                                                        multiplier=multiplier, 
+                                                        timespan=timespan,
+                                                        from_= from_,
+                                                        to=to) 
+            
+            if resp.resultsCount > 0:
+                data = pd.DataFrame(resp.results)
+            return data
 
 
