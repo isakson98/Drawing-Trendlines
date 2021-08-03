@@ -28,7 +28,7 @@ refresh_obj = FlatDBmodification()
 
 params = popular_paths['historical 1 day']["params"]
 dir_list = popular_paths['historical 1 day']["dir_list"]
-refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
+refresh_obj.threaded_add_new_price_data(dir_list, params, update=False)
 
 
 # ---------------------------- TRENDLINE MATERIAL --------------------------------- #

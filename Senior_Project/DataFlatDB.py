@@ -139,11 +139,13 @@ class DataFlatDB:
     returns:
         boolean -> True if file exists / False otherwise
     '''
-    def __verify_path_existence(self, string_path : str):
+    def verify_path_existence(self, string_path : str):
 
         if not os.path.exists(string_path):
+            client_use = os.path.join(self.dir_operated_on, string_path)
+            if os.path.exists(client_use):
+                return True
             return False
-
         return True
 
     ##################
@@ -163,8 +165,9 @@ class DataFlatDB:
     def add_data(self, root_name_file : str, content_to_add : pd.DataFrame, default_suffix=True):
         full_name = root_name_file + self.suffix
         full_path = self.__merge_path_content([self.dir_operated_on, full_name])
-        exists = self.__verify_path_existence(full_path)
+        exists = self.verify_path_existence(full_path)
         if exists:
+            print(f"New data not added because file exists {full_name}")
             return False
         content_to_add.to_csv(full_path, index=False)
         return True
@@ -184,7 +187,7 @@ class DataFlatDB:
     '''
     def update_data(self, full_file_name, content_to_add, keep_old):
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
-        exists = self.__verify_path_existence(full_path)
+        exists = self.verify_path_existence(full_path)
         if not exists:
             return False
 
@@ -253,7 +256,7 @@ class DataFlatDB:
     '''
     def change_dir(self, dir_list_to_operate_in : list):
         str_dir = self.__merge_path_content(dir_list_to_operate_in)
-        if not self.__verify_path_existence(str_dir):
+        if not self.verify_path_existence(str_dir):
             raise ValueError(f'{str_dir} does not exist! Reexamine the path')
         self.dir_operated_on = str_dir
         self.__create_file_suffix()

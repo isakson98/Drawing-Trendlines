@@ -5,7 +5,9 @@ from DataDownload import DataDownload
 from popular_paths import popular_paths
 from StockScreener import NasdaqStockScreener
 
+from math import floor
 import pandas as pd
+import numpy as np
 import threading
 import datetime as dt
 
@@ -30,7 +32,8 @@ class FlatDBmodification:
     a NasdaqStockScreener() object, which makes a call to scrape Nasdaq's screener page.
     In addition to that, this function compares the refresh list of tickers and adds outdated
     tickers to the delisted file in another directory.
-
+    TODO: make sure you get data only after the day ends -> to avoid gettin incomplete data
+    TODO: 
     '''
     def update_current_ticker_list(self):
         self.flat_db = DataFlatDB(popular_paths["current tickers"]["dir_list"])
@@ -102,6 +105,10 @@ class FlatDBmodification:
 
         downloader = DataDownload()
         for index, ticker in enumerate(tickers_to_update):
+            if index % 100 == 0:
+                self.lock.acquire()
+                print(f"{index} tickers processed by a thread")    
+
             full_file_name = ticker + dir_suffix
             price_df = self.flat_db.retrieve_data(full_file_name)
             last_time = price_df.at[len(price_df)-1, "t"]
@@ -115,9 +122,6 @@ class FlatDBmodification:
                 new_df.drop(new_df.head(1).index,inplace=True)            
                 updated_df = pd.concat([price_df, new_df])
                 self.flat_db.update_data(full_file_name, updated_df, keep_old=False)
-
-            if index % 100 == 0:
-                print(f"{index+1} stocks updated")
 
     ##########################
     # RAW PRICE MANIPULATION # (threaded)
@@ -171,7 +175,7 @@ class FlatDBmodification:
             t.start()
 
         # wait for threads to finish
-        for index, thread in enumerate(list_threads):
+        for thread in list_threads:
             thread.join()
 
     '''
@@ -191,35 +195,40 @@ class FlatDBmodification:
 
         downloader = DataDownload()
         for index, ticker in enumerate(list_tickers):
-            # keep track of progress for user every 100 tickers
             if index % 100 == 0:
                 self.lock.acquire()
-                print(f"A thread retrieved {index} files")
-                self.lock.release()
+                print(f"{index} tickers processed by a thread")  
+                self.lock.release()  
+
+            to_stamp = self.__choose_final_timestamp()
+            full_file_name = ticker + dir_suffix
 
             # if updating file, retrieve its content and get last row's time
             if update:
-                full_file_name = ticker + dir_suffix
                 price_df = self.flat_db.retrieve_data(full_file_name)
                 # ticker is in list of current tickers, but not in flat DB yet
                 if len(price_df) == 0:
                     last_time = "1900-01-01"
                 else:
                     last_time = price_df.at[len(price_df)-1, "t"] # returns milliseconds
-                    last_time_date = dt.date.fromtimestamp(last_time/1000)
-                    today_date = dt.date.today()
                     # avoid making a request if data is completely recent
-                    if last_time_date >= today_date:
-                        continue
-
-            else:
+                    if last_time >= to_stamp:
+                        continue   
+            
+            # if not updating
+            if not update:
+                file_exists = self.flat_db.verify_path_existence(full_file_name)
+                if file_exists:
+                    continue
                 last_time = "1900-01-01"
 
             # download the data
             new_df = downloader.dwn_price_data(ticker=ticker,
                                             multiplier=params["multiplier"],
                                             timespan=params['timespan'],
-                                            from_ = last_time)
+                                            from_=last_time,
+                                            to=to_stamp
+                                            )
 
             # if we received some data, save it to the file
             # think of repurcussions for this
@@ -231,5 +240,42 @@ class FlatDBmodification:
                     self.flat_db.update_data(full_file_name, updated_df, keep_old=False)
                 elif last_time == "1900-01-01":
                     self.flat_db.add_data(ticker, new_df)
+
+    '''
+    params:
+        today_datetime -> displays current time
+
+    this function is used to determine where to cap the data arrival
+    I do not want to receive incomplete data for todays date in the
+    middle of the day
+
+    returns:
+        timestamp in milliseconds of the last bar to fetch
+    
+    '''
+    def __choose_final_timestamp(self):
+
+        today_datetime = dt.datetime.now()
+        str_today = today_datetime.strftime("%Y-%m-%d")
+        final_mili_timestamp = 0
+        # if weekend can pull until todays date
+        if not np.is_busday(str_today):
+            final_mili_timestamp = today_datetime.timestamp() 
+        else:
+            if today_datetime.hour >= 20:
+                final_mili_timestamp = today_datetime.timestamp() 
+            else:
+                yesterday = today_datetime - dt.timedelta(days=1)
+                yesterday = yesterday.replace(hour = 0)
+                yesterday = yesterday.replace(minute = 0)
+                yesterday = yesterday.replace(second = 0)
+                final_mili_timestamp = yesterday.timestamp() 
+
+        final_mili_timestamp = floor(final_mili_timestamp)
+        return int(final_mili_timestamp * 1000)
+
+
+
+
         
 
