@@ -241,6 +241,7 @@ class FlatDBmodification:
                 elif last_time == "1900-01-01":
                     self.flat_db.add_data(ticker, new_df)
 
+
     '''
     params:
         today_datetime -> displays current time
