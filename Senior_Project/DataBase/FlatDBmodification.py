@@ -1,15 +1,14 @@
 
-
-from DataFlatDB import DataFlatDB
-from DataDownload import DataDownload
-from popular_paths import popular_paths
-from StockScreener import NasdaqStockScreener
-
 from math import floor
 import pandas as pd
 import numpy as np
 import threading
 import datetime as dt
+
+from DataBase.DataFlatDB import DataFlatDB
+from DataBase.DataDownload import DataDownload
+from DataBase.popular_paths import popular_paths
+from DataBase.StockScreener import NasdaqStockScreener
 
 TOTAL_THREADS = 10
 
@@ -32,8 +31,6 @@ class FlatDBmodification:
     a NasdaqStockScreener() object, which makes a call to scrape Nasdaq's screener page.
     In addition to that, this function compares the refresh list of tickers and adds outdated
     tickers to the delisted file in another directory.
-    TODO: make sure you get data only after the day ends -> to avoid gettin incomplete data
-    TODO: 
     '''
     def update_current_ticker_list(self):
         self.flat_db = DataFlatDB(popular_paths["current tickers"]["dir_list"])
@@ -63,15 +60,9 @@ class FlatDBmodification:
         tickers_to_update -> empty by default, specific list of tickers you want to update
     
     populate_price_directory() responsible for creating new files (single threaded)
-    
-    TODO:one caveat with the current method: there is no verfication
-        that you are downloading the right thing into the right folder
-        should extension match the folder?
-        should I take the name of the extension based on existing files in the folder?
     '''
     def populate_price_directory(self, dir_list, params, list_of_tickers=[]):
         self.flat_db.change_dir(dir_list)
-        dir_suffix = self.flat_db.suffix
         if len(list_of_tickers) == 0:
             list_of_tickers = self.current_df["symbol"].tolist()
 
@@ -91,11 +82,6 @@ class FlatDBmodification:
     
     refresh_directory() -> connects two modules DataFlatDB (os wrapper) and DataDownload to update
     existing files with the freshest dates (single threaded)
-    
-    TODO:one caveat with the current method: there is no verfication
-        that you are downloading the right thing into the right folder
-        should extension match the folder?
-        should I take the name of the extension based on existing files in the folder?
     '''
     def refresh_price_directory(self, dir_list, params, tickers_to_update=[]):
         self.flat_db.change_dir(dir_list)
@@ -106,8 +92,10 @@ class FlatDBmodification:
         downloader = DataDownload()
         for index, ticker in enumerate(tickers_to_update):
             if index % 100 == 0:
-                self.lock.acquire()
-                print(f"{index} tickers processed by a thread")    
+                print(f"{index} tickers processed by a thread")  
+
+            if ticker == "CARS":
+                print()  
 
             full_file_name = ticker + dir_suffix
             price_df = self.flat_db.retrieve_data(full_file_name)
@@ -135,11 +123,6 @@ class FlatDBmodification:
         tickers_to_update -> empty by default, specific list of tickers you want to update
 
      threaded_add_new_data deals 
-    
-    TODO:one caveat with the current method: there is no verfication
-        that you are downloading the right thing into the right folder
-        should extension match the folder?
-        should I take the name of the extension based on existing files in the folder?
     '''
     def threaded_add_new_price_data(self, dir_list, params, update, tickers_to_update=[]):
 
@@ -195,6 +178,7 @@ class FlatDBmodification:
 
         downloader = DataDownload()
         for index, ticker in enumerate(list_tickers):
+
             if index % 100 == 0:
                 self.lock.acquire()
                 print(f"{index} tickers processed by a thread")  

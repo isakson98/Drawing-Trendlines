@@ -11,57 +11,21 @@ import os
 from scipy.stats import linregress
 import datetime as dt
 
+'''
 
+This class can be seen as the engine for trendline drawing on a DataFrame of prices
 
+the key things to consider when developing this class: 
+- make sure this class focuses on price points, irrelevant of the timeframe and its multiple
+- make sure this class can process numbers irrespective of column names, only numbers matters here
+
+'''
 class Trendline_Drawing:
 
     ohlc = pd.DataFrame()
 
     def __init__(self, ohlc):
         self.ohlc = ohlc
-
-    '''
-    To perform linear regression well (meaning draw a clear trendline) 
-    more than once on one chart, I need to be able to assign starting points
-    and end points to the lines.
-
-    Starting points brainstorm:
-    -- higher highs / lower highs (easiest)
-    This function will find local extrema that will act as starting points
-    '''
-    # TODO make less if statements
-    # TODO -> save highs and lows to dataframe 
-    def identify_lows_highs(self, ohlc_type, distance=5):
-
-        if ohlc_type == "High":
-            isHigh = True
-        else:
-            isHigh = False
-
-
-        self.ohlc[f"{ohlc_type} Extremes"] = True
-
-        for i, r in self.ohlc.iterrows():
-            # skip to avoid index out of bounds
-            if i < distance * 2:
-                continue
-            # get earliest value
-            earliest = self.ohlc.at[i - distance, ohlc_type]
-            # get most extreme value in the range (either low or high)
-            if isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].max()
-            if not isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].min()
-
-            # compare if earlist is the most extreme in the range given
-            if earliest < most_extreme and isHigh:
-                self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
-            if earliest > most_extreme and not isHigh:
-                self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
-        
-        self.ohlc.at[:distance*2, f"{ohlc_type} Extremes"] = False
-
-        return self.ohlc
 
     '''
     calculate_lin_reg() accomodates finding both

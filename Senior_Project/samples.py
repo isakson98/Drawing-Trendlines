@@ -13,27 +13,42 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 
 
 '''
+# man made, database module
+from DataBase.popular_paths import popular_paths
+from DataBase.FlatDBmodification import FlatDBmodification
+from DataBase.StockScreener import ScreenerProcessor
+from DataBase.DataFlatDB import DataFlatDB
+
+# 
+from PriceProcessing.LinearRegTrendline import Trendline_Drawing
+from PriceProcessing.Visualize import visualize_ticker
+
+# robot made
+import datetime as dt
+import matplotlib.pyplot as plt
+import pandas as pd
+import random
 
 if __name__ == '__main__':
 
     #############################################################################
-    # man made
-    from popular_paths import popular_paths
-    from FlatDBmodification import FlatDBmodification
 
     # retrieve delisted tickers
     flat_ob = DataFlatDB(popular_paths["delisted tickers"]["dir_list"])
     delisted_df = flat_ob.retrieve_data("all_delisted_tickers.csv")
-
-    # clean up file
-    delisted_clean_up_obj = ScreenerProcessor()
-    delisted_df = delisted_clean_up_obj.rmv_financial_instruments(delisted_df)
-    delisted_df = delisted_clean_up_obj.rmv_spacs(delisted_df)
-    delisted_df = delisted_clean_up_obj.rmv_subclass_shares(delisted_df)
-    delisted_df = delisted_clean_up_obj.rmv_numbered_symbols(delisted_df)
-    flat_ob.update_data("all_delisted_tickers.csv", content_to_add=delisted_df, keep_old=False)
-
     delisted_list = delisted_df["symbol"].tolist()
+
+    # list in ascending order time wise, so first thread will get most available tickers
+    random.shuffle(delisted_list)
+
+    # download data for delisted tickers
+    dir_list = popular_paths["historical 1 day"]["dir_list"]
+    params = popular_paths["historical 1 day"]["params"]
+    flat_mod = FlatDBmodification()
+    flat_mod.threaded_add_new_price_data(dir_list=dir_list, 
+                                        params=params, 
+                                        update=False, 
+                                        tickers_to_update=delisted_list)
 
     #############################################################################
 
@@ -41,19 +56,25 @@ if __name__ == '__main__':
     refresh_obj = FlatDBmodification()
     refresh_obj.update_current_ticker_list()
 
-    # retrieve data from
+    #############################################################################
+
+    # retrieve daily candles for all current tickers
     refresh_obj = FlatDBmodification()
     params = popular_paths['historical 1 day']["params"]
     dir_list = popular_paths['historical 1 day']["dir_list"]
     refresh_obj.threaded_add_new_price_data(dir_list, params, update=False)
 
-    amc_df = refresh_obj.re
+    #############################################################################
+
+    # retrieve daily candles for all current tickers
+    refresh_obj = FlatDBmodification()
+    params = popular_paths['historical 1 day']["params"]
+    dir_list = popular_paths['historical 1 day']["dir_list"]
+    refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
     #############################################################################
-    # ---------------------------- TRENDLINE MATERIAL --------------------------------- #
-
-    from DataFlatDB import DataFlatDB
-    from LinearReg_Trendline import Trendline_Drawing
+    
+    # ---------------------------- TRENDLINE MATERIAL --------------------------------- # 
     flat_ob = DataFlatDB()
     file_name = "AMC" + flat_ob.suffix
     amc_df = flat_ob.retrieve_data(file_name)

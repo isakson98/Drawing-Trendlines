@@ -1,10 +1,10 @@
-# using to access file
+# public modules
 import pandas as pd
 import datetime as dt
-
-# polygon access
-from credentials import polygon_key
 from polygon import RESTClient
+
+# developed modules
+from DataBase.credentials import polygon_key
 
 '''
 This class is a wrapper for the Polygon client library.

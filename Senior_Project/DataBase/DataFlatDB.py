@@ -26,8 +26,10 @@ and if statements that protect user in some ways from messing up
 PS. can think of this as a wrapper for the os module
 '''
 class DataFlatDB:
-
+    
+    # need to go one dir up to get access to database, since we are in a folder
     root_data_dir = os.path.dirname(__file__)
+    root_data_dir = os.path.dirname(root_data_dir)
     dir_operated_on = None
     suffix = None
 
@@ -226,7 +228,7 @@ class DataFlatDB:
         try : 
             df = pd.read_csv(full_path)
         except:
-            print(f"{full_file_name} was not found")
+            print(f"{full_file_name} could not be read")
         return df
 
     '''

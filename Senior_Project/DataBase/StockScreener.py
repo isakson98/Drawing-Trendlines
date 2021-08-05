@@ -1,6 +1,4 @@
 import pandas as pd
-from enum import Enum
-import io
 import requests
 import datetime
 
@@ -10,6 +8,12 @@ ScreenerProcessor class used to clean up lists of stocks
 
 This is used now to clean up incoming data from the Nasdaq API call
 and to clean delisted stocks.
+
+all files that have lists of tickers and that you want to be processsed
+using this class must match the name of columns you are referring to.
+
+As of now, August 5th 2021, columns used in this class are: symbol, volume, and name
+
 '''
 class ScreenerProcessor:
     '''
