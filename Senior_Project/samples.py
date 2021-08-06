@@ -32,6 +32,8 @@ import random
 if __name__ == '__main__':
 
     #############################################################################
+    # DOWNLOADING DATA FOR DELISTED TICKERS
+    #############################################################################
 
     # retrieve delisted tickers
     flat_ob = DataFlatDB(popular_paths["delisted tickers"]["dir_list"])
@@ -50,29 +52,31 @@ if __name__ == '__main__':
                                         update=False, 
                                         tickers_to_update=delisted_list)
 
-    #############################################################################
-
+    #############################################################################   
     # update current ticker csv and delisted csv
+    #############################################################################
     refresh_obj = FlatDBmodification()
     refresh_obj.update_current_ticker_list()
 
-    #############################################################################
-
+    #############################################################################   
     # retrieve daily candles for all current tickers
+    ############################################################################# 
     refresh_obj = FlatDBmodification()
     params = popular_paths['historical 1 day']["params"]
     dir_list = popular_paths['historical 1 day']["dir_list"]
     refresh_obj.threaded_add_new_price_data(dir_list, params, update=False)
 
-    #############################################################################
-
-    # retrieve daily candles for all current tickers
+    #############################################################################   
+    # update daily candles for all current tickers
+    ############################################################################# 
     refresh_obj = FlatDBmodification()
     params = popular_paths['historical 1 day']["params"]
     dir_list = popular_paths['historical 1 day']["dir_list"]
     refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
-    #############################################################################
+    #############################################################################   
+    # update daily candles for all current tickers
+    ############################################################################# 
     
     # ---------------------------- TRENDLINE MATERIAL --------------------------------- # 
     flat_ob = DataFlatDB()

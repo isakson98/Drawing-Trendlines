@@ -34,28 +34,31 @@ class TickerProcessing:
         else:
             raise ValueError("Wrong input for ohlc_type parameter in identify_lows_highs()")
 
-
         self.ohlc[f"{ohlc_type} Extremes"] = True
 
         for i, r in self.ohlc.iterrows():
             # skip to avoid index out of bounds
             if i < distance * 2:
                 continue
-            # get earliest value
-            earliest = self.ohlc.at[i - distance, ohlc_type]
+            # get earliest value of the distance specified
+            earliest_index = i - distance
+            earliest_price = self.ohlc.at[earliest_index, ohlc_type]
             # get most extreme value in the range (either low or high)
+            # compare if earliest is the most extreme in the range given
+            # if not mark earliest given time as NOT the extreme
             if isHigh:
                 most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].max()
             if not isHigh:
                 most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].min()
 
             # compare if earlist is the most extreme in the range given
-            if earliest < most_extreme and isHigh:
+            if earliest_price < most_extreme and isHigh:
                 self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
-            if earliest > most_extreme and not isHigh:
+            if earliest_price > most_extreme and not isHigh:
                 self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
         
         self.ohlc.at[:distance*2, f"{ohlc_type} Extremes"] = False
+
 
         return self.ohlc
 
