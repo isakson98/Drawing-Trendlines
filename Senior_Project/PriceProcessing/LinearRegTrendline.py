@@ -20,49 +20,6 @@ class Trendline_Drawing:
         self.ohlc = ohlc
 
     '''
-    To perform linear regression well (meaning draw a clear trendline) 
-    more than once on one chart, I need to be able to assign starting points
-    and end points to the lines.
-
-    Starting points brainstorm:
-    -- higher highs / lower highs (easiest)
-    This function will find local extrema that will act as starting points
-    '''
-    # TODO make less if statements
-    # TODO -> save highs and lows to dataframe 
-    def identify_lows_highs(self, ohlc_type, distance=5):
-
-        if ohlc_type == "h":
-            isHigh = True
-        else:
-            isHigh = False
-
-
-        self.ohlc[f"{ohlc_type} Extremes"] = True
-
-        for i, r in self.ohlc.iterrows():
-            # skip to avoid index out of bounds
-            if i < distance * 2:
-                continue
-            # get earliest value
-            earliest = self.ohlc.at[i - distance, ohlc_type]
-            # get most extreme value in the range (either low or high)
-            if isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].max()
-            if not isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, ohlc_type].min()
-
-            # compare if earlist is the most extreme in the range given
-            if earliest < most_extreme and isHigh:
-                self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
-            if earliest > most_extreme and not isHigh:
-                self.ohlc.at[i - distance, f"{ohlc_type} Extremes"] = False
-        
-        self.ohlc.at[:distance*2, f"{ohlc_type} Extremes"] = False
-
-        return self.ohlc
-
-    '''
     calculate_lin_reg() accomodates finding both
     ascending and descending trendlines
     '''
@@ -87,8 +44,9 @@ class Trendline_Drawing:
     precisesness -> the higher the number, the more candles algo will draw the line over
 
     '''
+    # TODO compartmentalize to accomodate which section to build a trendline on
     # TODO merge ascending and descending trendline into if possible
-    def identify_trendlines_LinReg(self, start=None, end=None, extreme="h", min_days_out=5, precisesness=4, max_trendlines_drawn=3):
+    def identify_trendlines_LinReg(self, start=None, end=None, distance=5, extrema_type="h", min_days_out=5, precisesness=4, max_trendlines_drawn=3):
 
         # extreme = extreme.lower().capitalize()
 
@@ -97,7 +55,7 @@ class Trendline_Drawing:
             self.ohlc = self.ohlc[start:end]
 
         # retrieve index values where high extremes are
-        extreme_points  = self.ohlc[self.ohlc[f"{extreme} Extremes"]==True].index.tolist()
+        extreme_points  = self.ohlc[self.ohlc[f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
         trendlines_start_end_points = []
 
         # find trendlines from each high
@@ -115,7 +73,7 @@ class Trendline_Drawing:
                 while len(data1) > precisesness and trendline_count < max_trendlines_drawn: #TODO -> fix hyperparameter number 2
 
                     #  slope, intercept, r, p, se = linregress(x, y)
-                    data1, reg = self.calculate_lin_reg(data1, data1.index, data1[extreme], extreme)
+                    data1, reg = self.calculate_lin_reg(data1, data1.index, data1[extrema_type], extrema_type)
 
                     # do not check trendlines until we have cut enough of data
                     if len(data1) != precisesness:
@@ -123,29 +81,29 @@ class Trendline_Drawing:
 
                     # if current high is above computed trendline that ends on previous candle ->
                     # this is a break out
-                    roll_std = data1.loc[end_index - min_days_out:end_index, extreme].std() / 2
-                    trendline_start_price = self.ohlc.loc[local_extreme,extreme] 
+                    roll_std = data1.loc[end_index - min_days_out:end_index, extrema_type].std() / 2
+                    trendline_start_price = self.ohlc.loc[local_extreme,extrema_type] 
                     trendline_pos_new_day = reg[0] * (end_index + 1) + reg[1] 
 
                     # using breakouts's day close as the pivot point
-                    if trendline_pos_new_day + roll_std < self.ohlc.loc[end_index + 1,"c"] and extreme =="h" and crossed_trendline == False:
+                    if trendline_pos_new_day + roll_std < self.ohlc.loc[end_index + 1,"c"] and extrema_type =="h" and crossed_trendline == False:
                         current_start_endpoints = [(local_extreme, trendline_start_price),
                                                     (end_index + 1, trendline_pos_new_day)]
                         trendlines_start_end_points.append(current_start_endpoints)
                         trendline_count += 1
                         crossed_trendline = True
 
-                    elif trendline_pos_new_day - roll_std > self.ohlc.loc[end_index + 1,"c"] and extreme =="l" and crossed_trendline == False:
+                    elif trendline_pos_new_day - roll_std > self.ohlc.loc[end_index + 1,"c"] and extrema_type =="l" and crossed_trendline == False:
                         current_start_endpoints = [(local_extreme, trendline_start_price),
                                                     (end_index + 1, trendline_pos_new_day)]
                         trendlines_start_end_points.append(current_start_endpoints)
                         trendline_count += 1
                         crossed_trendline = True
                     # theres no breakout
-                    elif trendline_pos_new_day > self.ohlc.loc[end_index + 1,extreme] and extreme =="h" and crossed_trendline == True:
+                    elif trendline_pos_new_day > self.ohlc.loc[end_index + 1,extrema_type] and extrema_type =="h" and crossed_trendline == True:
                         crossed_trendline = False
 
-                    elif trendline_pos_new_day < self.ohlc.loc[end_index + 1,extreme] and extreme =="l" and crossed_trendline == True:
+                    elif trendline_pos_new_day < self.ohlc.loc[end_index + 1,extrema_type] and extrema_type =="l" and crossed_trendline == True:
                         crossed_trendline = False
                 
                 days_forward += 1

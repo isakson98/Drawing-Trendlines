@@ -88,7 +88,7 @@ if __name__ == '__main__':
     extrema_distance = 5
     trendline_length = 10
     trendlines_drawn = 1 # 1 provides cleaner results
-    trendline_obj.identify_lows_highs(ohlc_type="High", distance=extrema_distance)
+    trendline_obj.identify_lows_highs(extrema_type="High", distance=extrema_distance)
     for precisesness in touches:
         descending_df = trendline_obj.identify_trendlines_LinReg(extreme="High", 
                                                                 min_days_out=trendline_length, 

@@ -30,26 +30,38 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random
 
-TICKER = "goog"
-TICKER.upper()
 
+#############################################################################   
+# create new files with highs and lows for all tickers (current and delisted)
+############################################################################# 
 dir_list = popular_paths['historical 1 day']['dir_list']
-data_getter = DataFlatDB(dir_list)
-mrna_df = data_getter.retrieve_data(TICKER + data_getter.suffix)
+raw_data_obj = DataFlatDB(dir_list)
 
-mrna_df = mrna_df.iloc[-400:,]
-mrna_df = mrna_df.reset_index()
+dir_list = popular_paths['extrema 1 day']['dir_list']
+extreme_dir_obj = DataFlatDB(dir_list)
 
-processing_obj = TickerProcessing(mrna_df)
-pross_mrna_df = processing_obj.identify_lows_highs(ohlc_type="h")
+list_raw_ticker_file_names = raw_data_obj.retrieve_all_file_names()
+for file_name in list_raw_ticker_file_names:
+    # retrieve raw price data
+    stock_df = raw_data_obj.retrieve_data(file_name)
+    # get lows and highs
+    processing_obj = TickerProcessing(stock_df)
+    highs_stock_df = processing_obj.identify_lows_highs(extrema_type="h", distance = 5)
+    lows_stock_df = processing_obj.identify_lows_highs(extrema_type="l", distance = 5)
+    if len(highs_stock_df) == 0 or len(lows_stock_df) == 0:
+        continue
+    # process concatanation
+    both_high_low_df = pd.concat([highs_stock_df, lows_stock_df])
+    both_high_low_df.fillna(False, inplace=True)
+    both_high_low_df.sort_values("t", inplace=True, kind="heapsort") #heapsort cause "t" always has same num digits
+    # get ticker name to save data
+    file_name_content = file_name.split("_")
+    ticker_name = file_name_content[0]
+    extreme_dir_obj.add_data(ticker_name, both_high_low_df)
 
-# total_lines = pd.DataFrame()
-for i in range(4,16):
-    trendline_obj = Trendline_Drawing(pross_mrna_df)
-    lines_mrna_df = trendline_obj.identify_trendlines_LinReg(precisesness=i, max_trendlines_drawn=1)
-    visualize_ticker(pross_mrna_df, additional_stuff=lines_mrna_df)
-    # total_lines = total_lines.append(lines_mrna_df)
-    print(f"done with {i}")
+
+
+
 
 
 

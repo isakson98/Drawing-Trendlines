@@ -18,6 +18,7 @@ the rule is: 1 list of parameters PER directory (keeping things separate)
 popular_paths = {
     'historical 1 week' : {"dir_list" : ["data", "raw", "price", "1_week"], "params" : {"multiplier": 1, "timespan" : "week"}},
     'historical 1 day'  : {"dir_list" : ["data", "raw", "price", "1_day"],  "params" : {"multiplier": 1, "timespan" : "day"} },
+    'extrema 1 day'     : {"dir_list" : ["data", "processed", "extremas", "1_day"]},  
     'current tickers'   : {"dir_list" : ["data", "watchlists", "current_tickers"] },
     'delisted tickers'  : {"dir_list" : ["data", "watchlists", "delisted_tickers"]}
 }
