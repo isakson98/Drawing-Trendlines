@@ -28,6 +28,9 @@ class TickerProcessing:
     Starting points brainstorm:
     -- higher highs / lower highs (easiest)
     This function will find local extrema that will act as starting points
+
+    returns:
+        extrema_only
     '''
     # TODO make less if statements
     # TODO -> save highs and lows to dataframe 
@@ -75,6 +78,29 @@ class TickerProcessing:
 
         extrema_only = self.ohlc[self.ohlc[f"{extrema_type}_extremes_{distance}"]==True]
         return extrema_only
+
+    '''
+    params:
+        distance -> number of candles passed after which, if price fails to make a new extreme 
+                    high or low, a candle is considered an extreme
+
+    usually you are gonna want to get both highs and lows for a given stock
+
+    returns:
+
+
+    '''
+    def identify_both_lows_highs(self, distance):
+        highs_stock_df = self.identify_lows_highs(extrema_type="h", distance=distance)
+        lows_stock_df = self.identify_lows_highs(extrema_type="l", distance=distance)
+        if len(highs_stock_df) == 0 or len(lows_stock_df) == 0:
+            return pd.DataFrame()
+        # process concatanation
+        both_high_low_df = pd.concat([highs_stock_df, lows_stock_df])
+        both_high_low_df.fillna(False, inplace=True)
+        # heapsort cause "t" always has same num digits get ticker name to save data
+        both_high_low_df.sort_values("t", inplace=True, kind="heapsort") 
+        return both_high_low_df
 
     '''
     params:
