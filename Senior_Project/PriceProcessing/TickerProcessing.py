@@ -53,7 +53,7 @@ class TickerProcessing:
 
         self.ohlc[f"{extrema_type}_extremes_{distance}"] = True
 
-        for i, r in self.ohlc.iterrows():
+        for i, r in enumerate(self.ohlc.itertuples()):
             # skip to avoid index out of bounds
             if i < distance * 2:
                 continue
@@ -84,16 +84,18 @@ class TickerProcessing:
         distance -> number of candles passed after which, if price fails to make a new extreme 
                     high or low, a candle is considered an extreme
 
-    usually you are gonna want to get both highs and lows for a given stock
+    usually you are gonna want to get both highs and lows for a given stock.
+    thus this function calls identify_lows_highs with both params low and the high, keeping the same
+    distance and concatanating the two together.
 
     returns:
-
+        both_high_low_df -> either empty Dataframe if nothing to append or new highs/lows DF
 
     '''
     def identify_both_lows_highs(self, distance):
         highs_stock_df = self.identify_lows_highs(extrema_type="h", distance=distance)
         lows_stock_df = self.identify_lows_highs(extrema_type="l", distance=distance)
-        if len(highs_stock_df) == 0 or len(lows_stock_df) == 0:
+        if len(highs_stock_df) == 0 and len(lows_stock_df) == 0:
             return pd.DataFrame()
         # process concatanation
         both_high_low_df = pd.concat([highs_stock_df, lows_stock_df])

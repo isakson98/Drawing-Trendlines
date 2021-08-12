@@ -15,7 +15,7 @@ TOTAL_THREADS = 10
 '''
 This class will be used for common DB modifications
 '''
-class FlatDBmodification:
+class FlatDBRawMod:
 
     flat_db = None
     current_df = None
@@ -94,9 +94,6 @@ class FlatDBmodification:
             if index % 100 == 0:
                 print(f"{index} tickers processed by a thread")  
 
-            if ticker == "CARS":
-                print()  
-
             full_file_name = ticker + dir_suffix
             price_df = self.flat_db.retrieve_data(full_file_name)
             last_time = price_df.at[len(price_df)-1, "t"]
@@ -111,9 +108,9 @@ class FlatDBmodification:
                 updated_df = pd.concat([price_df, new_df])
                 self.flat_db.update_data(full_file_name, updated_df, keep_old=False)
 
-    ##########################
-    # RAW PRICE MANIPULATION # (threaded)
-    ##########################
+    ################################################################################
+                        # RAW PRICE MANIPULATION # (threaded)
+    ################################################################################
 
     '''
     params:
@@ -225,7 +222,6 @@ class FlatDBmodification:
                 elif last_time == "1900-01-01":
                     self.flat_db.add_data(ticker, new_df)
 
-
     '''
     params:
         today_datetime -> displays current time
@@ -258,9 +254,4 @@ class FlatDBmodification:
 
         final_mili_timestamp = floor(final_mili_timestamp)
         return int(final_mili_timestamp * 1000)
-
-
-
-
-        
 

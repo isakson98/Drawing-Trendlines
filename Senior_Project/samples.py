@@ -15,7 +15,7 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 '''
 # man made, database module
 from DataBase.popular_paths import popular_paths
-from DataBase.FlatDBmodification import FlatDBmodification
+from DataBase.FlatDBRawMod import FlatDBRawMod
 from DataBase.StockScreener import ScreenerProcessor
 from DataBase.DataFlatDB import DataFlatDB
 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # download data for delisted tickers
     dir_list = popular_paths["historical 1 day"]["dir_list"]
     params = popular_paths["historical 1 day"]["params"]
-    flat_mod = FlatDBmodification()
+    flat_mod = FlatDBRawMod()
     flat_mod.threaded_add_new_price_data(dir_list=dir_list, 
                                         params=params, 
                                         update=False, 
@@ -60,13 +60,13 @@ if __name__ == '__main__':
     #############################################################################   
     # update current ticker csv and delisted csv
     #############################################################################
-    refresh_obj = FlatDBmodification()
+    refresh_obj = FlatDBRawMod()
     refresh_obj.update_current_ticker_list()
 
     #############################################################################   
     # retrieve daily candles for all current tickers
     ############################################################################# 
-    refresh_obj = FlatDBmodification()
+    refresh_obj = FlatDBRawMod()
     params = popular_paths['historical 1 day']["params"]
     dir_list = popular_paths['historical 1 day']["dir_list"]
     refresh_obj.threaded_add_new_price_data(dir_list, params, update=False)
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     #############################################################################   
     # update daily candles for all current tickers
     ############################################################################# 
-    refresh_obj = FlatDBmodification()
+    refresh_obj = FlatDBRawMod()
     params = popular_paths['historical 1 day']["params"]
     dir_list = popular_paths['historical 1 day']["dir_list"]
     refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
