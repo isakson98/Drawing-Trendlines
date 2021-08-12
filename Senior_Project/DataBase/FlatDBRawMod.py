@@ -187,7 +187,7 @@ class FlatDBRawMod:
             # if updating file, retrieve its content and get last row's time
             if update:
                 price_df = self.flat_db.retrieve_data(full_file_name)
-                # ticker is in list of current tickers, but not in flat DB yet
+                # ticker is in list of current tickers, but not in flat DB yet (new ticker)
                 if len(price_df) == 0:
                     last_time = "1900-01-01"
                 else:

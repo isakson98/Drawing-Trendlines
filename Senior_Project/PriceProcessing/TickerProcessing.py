@@ -1,11 +1,10 @@
-import pandas as pd
 
+import pandas as pd
 
 '''
 
 This class is going to have methods to process raw data given 
 to develop features
-
 
 
 '''
@@ -53,7 +52,12 @@ class TickerProcessing:
 
         self.ohlc[f"{extrema_type}_extremes_{distance}"] = True
 
-        for i, r in enumerate(self.ohlc.itertuples()):
+        '''
+        itertuples is much faster than iterrows cause of less type checking
+        name=None refers to creating a pure tuple with no reference to columns
+        in this case, I am not even using the tuple
+        '''
+        for i in range(len(self.ohlc)):
             # skip to avoid index out of bounds
             if i < distance * 2:
                 continue
@@ -74,7 +78,9 @@ class TickerProcessing:
             if earliest_price > most_extreme and not isHigh:
                 self.ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
         
+        # the ends of the period are not reliable, due to the lack of data
         self.ohlc.at[:distance*2, f"{extrema_type}_extremes_{distance}"] = False
+        self.ohlc.at[len(self.ohlc)-distance:, f"{extrema_type}_extremes_{distance}"] = False
 
         extrema_only = self.ohlc[self.ohlc[f"{extrema_type}_extremes_{distance}"]==True]
         return extrema_only
@@ -95,6 +101,7 @@ class TickerProcessing:
     def identify_both_lows_highs(self, distance):
         highs_stock_df = self.identify_lows_highs(extrema_type="h", distance=distance)
         lows_stock_df = self.identify_lows_highs(extrema_type="l", distance=distance)
+
         if len(highs_stock_df) == 0 and len(lows_stock_df) == 0:
             return pd.DataFrame()
         # process concatanation

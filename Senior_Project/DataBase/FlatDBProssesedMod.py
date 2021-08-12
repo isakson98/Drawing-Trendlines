@@ -1,5 +1,10 @@
 
 import pandas as pd
+import numpy as np
+import concurrent.futures
+from  random import shuffle
+from functools import partial
+import multiprocessing as mp
 
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
@@ -22,28 +27,34 @@ class FlatDBProssesedMod:
     ################################################################################
     '''
     params:
-        distance -> 
+        multiple -> a number that is an aggregate of a timespan 
+        timespan -> minute / hour / day / week / month (multiple and timespan params go together)
+        distance -> # of candles that pass after extrema to consider it an extrema
+        list_raw_ticker_file_names -> list of raw prices file names to read from
     
     create new files with highs and lows for all tickers (current and delisted)
 
     '''
-    def find_extrema_on_existing_ticker(self, multiple, timespan, distance, list_raw_ticker_file_names):
-        # TODO -> think of how to to handle timeframe access
+    def save_extrema_on_tickers(self, multiple, timespan, distance, list_raw_ticker_file_names):
+        # TODO -> think of how to to handle  timeframe access
+        # determine 
+        try:
+            dir_params = str(multiple) + " " + timespan
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            dir_list = popular_paths[f'extrema {dir_params}']['dir_list']
+            extreme_dir_obj = DataFlatDB(dir_list)
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
 
-        dir_list = popular_paths['historical 1 day']['dir_list']
-        raw_data_obj = DataFlatDB(dir_list)
-
-        dir_list = popular_paths['extrema 1 day']['dir_list']
-        extreme_dir_obj = DataFlatDB(dir_list)
-
-        list_raw_ticker_file_names = raw_data_obj.retrieve_all_file_names()
-        # TODO -> check if file exists
         for index, file_name in enumerate(list_raw_ticker_file_names):
-            if index % 100 == 0:
+            if index % 200 == 0 and index != 0:
                 print(f"Process identified extrema on {index} tickers")
+                # break
+                
             # retrieve raw price data
             stock_df = raw_data_obj.retrieve_data(file_name)
-
             # verify processed file existence
             file_name_content = file_name.split("_")
             ticker_name = file_name_content[0]
@@ -74,3 +85,42 @@ class FlatDBProssesedMod:
                     continue
                 # get ticker name to save data
                 extreme_dir_obj.add_data(ticker_name, high_low_df)
+
+    '''
+    params:
+        partial_fun_params -> dictionary that contains: multiple, timespan, distance keys
+        list_raw_ticker_file_names -> list of file names of raw prices fetched 
+                                      (could be different each time, either all or only current)
+        n_core -> number of processes spawned during this function 
+
+    this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
+    up the work
+
+    '''
+    def parallel_save_extrema(self, partial_fun_params, list_raw_ticker_file_names, n_core):
+        
+        shuffle(list_raw_ticker_file_names)
+        ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
+
+        # “freezes” some portion of a function’s arguments and/or keywords resulting
+        # in a new object with a simplified signature
+        apply_partial_extrema = partial(self.save_extrema_on_tickers, 
+                                multiple=partial_fun_params["multiple"], 
+                                timespan=partial_fun_params["timespan"],
+                                distance=partial_fun_params["distance"])
+        apply_partial_extrema(list_raw_ticker_file_names=ticker_pieces[0])
+        # pool = concurrent.futures.ProcessPoolExecutor(max_workers = 1)
+        # pool.map(apply_partial_extrema, ticker_pieces)
+
+        # with concurrent.futures.ProcessPoolExecutor() as executor:
+        #     executor.map(apply_partial_extrema, ticker_pieces)
+
+        processes = []
+        for i in range(n_core):
+            p = mp.Process(target=self.save_extrema_on_tickers, args=(partial_fun_params["multiple"], 
+                                                                      partial_fun_params["timespan"],
+                                                                      partial_fun_params["distance"],
+                                                                      ticker_pieces[i],))
+            processes.append(p)
+        [x.start() for x in processes]
+        [x.join() for x in processes]
