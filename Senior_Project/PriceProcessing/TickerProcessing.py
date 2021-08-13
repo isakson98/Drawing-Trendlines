@@ -111,19 +111,3 @@ class TickerProcessing:
         both_high_low_df.sort_values("t", inplace=True, kind="heapsort") 
         return both_high_low_df
 
-    '''
-    params:
-        prev_high_low_file -> data from the last high/low file
-    
-    retrieving currently saved high/low file for the particular stock to find the last low/high available
-    and update all of them
-
-    '''
-    def update_highs_lows(self, prev_high_low_file):
-
-        # parse out parameters from the name columns
-        
-        # cut out properly the raw data, so you can start from the end
-
-        # 
-        pass

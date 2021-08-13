@@ -34,20 +34,8 @@ import pandas as pd
 
 if __name__ == '__main__':
 
-    # # 
-    # STOCK_TO_VISUALIZE = "TREX"
-    # raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-    # raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-
-    # extrema_obj = DataFlatDB(popular_paths["extrema 1 day"]["dir_list"])
-    # extrema_df = extrema_obj.retrieve_data(STOCK_TO_VISUALIZE+extrema_obj.suffix)
-
-    # visualize_ticker(raw_df, extrema_df)
-
-
     raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
     raw_file_names = raw_obj.retrieve_all_file_names()
-
     partial_params = {'multiple':1, 'timespan':"day", 'distance':5}
     pross_mod_obj = FlatDBProssesedMod()
-    pross_mod_obj.parallel_save_extrema(partial_params, raw_file_names, 1)
+    pross_mod_obj.parallel_save_extrema(partial_params, raw_file_names, 5)

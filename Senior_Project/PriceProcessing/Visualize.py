@@ -46,8 +46,6 @@ def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame())
     all_data = [go.Candlestick(price_trace), go.Candlestick(peaks_trace)]
     fig = go.Figure(data = all_data)
     fig.update_yaxes(fixedrange = False)
-    # ohlc_data["c"].plot(figsize=(15, 8))
-        
 
     for i, r in trendlines.iterrows():
         fig.add_trace(go.Scatter(x=[r["points"][0][0], r["points"][-1][0]],

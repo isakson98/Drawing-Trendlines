@@ -22,6 +22,8 @@ processes instead.
 '''
 class FlatDBProssesedMod:
 
+    printing_lock = mp.Lock()
+
     ################################################################################
                         # PROCESSED PRICE MANIPULATION # (MULTI - PROCESSED)
     ################################################################################
@@ -49,9 +51,10 @@ class FlatDBProssesedMod:
             raise ValueError(error_statement)
 
         for index, file_name in enumerate(list_raw_ticker_file_names):
-            if index % 200 == 0 and index != 0:
+            if index % 100 == 0 and index != 0:
+                self.printing_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
-                # break
+                self.printing_lock.release()
                 
             # retrieve raw price data
             stock_df = raw_data_obj.retrieve_data(file_name)
@@ -73,6 +76,9 @@ class FlatDBProssesedMod:
                 # find extrema
                 processing_obj = TickerProcessing(piece_raw_to_process)
                 new_lows_highs_df = processing_obj.identify_both_lows_highs(distance)
+                # if there's no data to update, don't update anything
+                if len(new_lows_highs_df) == 0:
+                    continue
                 # append to existing highs / lows
                 both_old_new_extrema = pd.concat([ticker_high_low_df, new_lows_highs_df])
                 extreme_dir_obj.update_data(ticker_name, both_old_new_extrema)
@@ -98,29 +104,23 @@ class FlatDBProssesedMod:
 
     '''
     def parallel_save_extrema(self, partial_fun_params, list_raw_ticker_file_names, n_core):
-        
+        # shuffle to distribute file sizes evenly
         shuffle(list_raw_ticker_file_names)
         ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
-
         # “freezes” some portion of a function’s arguments and/or keywords resulting
         # in a new object with a simplified signature
-        apply_partial_extrema = partial(self.save_extrema_on_tickers, 
-                                multiple=partial_fun_params["multiple"], 
-                                timespan=partial_fun_params["timespan"],
-                                distance=partial_fun_params["distance"])
-        apply_partial_extrema(list_raw_ticker_file_names=ticker_pieces[0])
-        # pool = concurrent.futures.ProcessPoolExecutor(max_workers = 1)
-        # pool.map(apply_partial_extrema, ticker_pieces)
-
-        # with concurrent.futures.ProcessPoolExecutor() as executor:
-        #     executor.map(apply_partial_extrema, ticker_pieces)
-
+        # apply_partial_extrema = partial(self.save_extrema_on_tickers, 
+        #                         multiple=partial_fun_params["multiple"], 
+        #                         timespan=partial_fun_params["timespan"],
+        #                         distance=partial_fun_params["distance"])
+        # apply_partial_extrema(list_raw_ticker_file_names=ticker_pieces[0])
         processes = []
         for i in range(n_core):
             p = mp.Process(target=self.save_extrema_on_tickers, args=(partial_fun_params["multiple"], 
                                                                       partial_fun_params["timespan"],
                                                                       partial_fun_params["distance"],
                                                                       ticker_pieces[i],))
+            p.daemon = True # kills this child process if the main program exits
             processes.append(p)
         [x.start() for x in processes]
         [x.join() for x in processes]
