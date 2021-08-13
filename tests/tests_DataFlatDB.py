@@ -11,7 +11,7 @@ parent_dir_path = os.path.join(parent_dir_path, "Senior_Project")
 sys.path.append(parent_dir_path)
 
 
-from DataFlatDB import DataFlatDB
+from DataBase.DataFlatDB import DataFlatDB
 
 class Test_DataFlatDB(unittest.TestCase):
 

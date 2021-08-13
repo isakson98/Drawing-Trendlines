@@ -11,7 +11,7 @@ parent_dir_path = os.path.join(parent_dir_path, "Senior_Project")
 sys.path.append(parent_dir_path)
 
 
-from DataDownload import DataDownload
+from DataBase.DataDownload import DataDownload
 
 class Test_DataDownload(unittest.TestCase):
     '''
