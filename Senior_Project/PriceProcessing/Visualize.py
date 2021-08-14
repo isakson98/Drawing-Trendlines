@@ -19,7 +19,7 @@ It adds different colors to what exactly you are checking for (purple for extrem
 
 
 '''
-def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame()):
+def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame(), from_=None, to=None,):
 
     price_trace = {
         'x': ohlc_data.t,

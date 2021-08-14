@@ -10,11 +10,6 @@ to develop features
 '''
 class TickerProcessing:
 
-    ohlc = pd.DataFrame()
-
-    def __init__(self, ohlc):
-        self.ohlc = ohlc
-
     '''
     params:
         extrema_type -> "h"/ "high" or "l" / "low" acceptable only, per naming conventions in the 
@@ -35,10 +30,10 @@ class TickerProcessing:
     # TODO -> save highs and lows to dataframe 
     # concerns -> 1. what if i want several distance columns
     #             2. what if i want to update high/lows columns
-    def identify_lows_highs(self, extrema_type, distance):
+    def identify_lows_highs(self, ohlc, extrema_type, distance):
 
         # if too short, don't consider it
-        if len(self.ohlc) <= distance * 4:
+        if len(ohlc) <= distance * 4:
             return pd.DataFrame()
 
         if extrema_type == "h" or extrema_type == "high":
@@ -50,39 +45,39 @@ class TickerProcessing:
         else:
             raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
 
-        self.ohlc[f"{extrema_type}_extremes_{distance}"] = True
+        ohlc[f"{extrema_type}_extremes_{distance}"] = True
 
         '''
         itertuples is much faster than iterrows cause of less type checking
         name=None refers to creating a pure tuple with no reference to columns
         in this case, I am not even using the tuple
         '''
-        for i in range(len(self.ohlc)):
+        for i in range(len(ohlc)):
             # skip to avoid index out of bounds
             if i < distance * 2:
                 continue
             # get earliest value of the distance specified
             earliest_index = i - distance
-            earliest_price = self.ohlc.at[earliest_index, extrema_type]
+            earliest_price = ohlc.at[earliest_index, extrema_type]
             # get most extreme value in the range (either low or high)
             # compare if earliest is the most extreme in the range given
             # if not mark earliest given time as NOT the extreme
             if isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, extrema_type].max()
+                most_extreme = ohlc.loc[i - distance * 2 : i, extrema_type].max()
             if not isHigh:
-                most_extreme = self.ohlc.loc[i - distance * 2 : i, extrema_type].min()
+                most_extreme = ohlc.loc[i - distance * 2 : i, extrema_type].min()
 
             # compare if earlist is the most extreme in the range given
             if earliest_price < most_extreme and isHigh:
-                self.ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
+                ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
             if earliest_price > most_extreme and not isHigh:
-                self.ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
+                ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
         
         # the ends of the period are not reliable, due to the lack of data
-        self.ohlc.at[:distance*2, f"{extrema_type}_extremes_{distance}"] = False
-        self.ohlc.at[len(self.ohlc)-distance:, f"{extrema_type}_extremes_{distance}"] = False
+        ohlc.at[:distance*2, f"{extrema_type}_extremes_{distance}"] = False
+        ohlc.at[len(ohlc)-distance:, f"{extrema_type}_extremes_{distance}"] = False
 
-        extrema_only = self.ohlc[self.ohlc[f"{extrema_type}_extremes_{distance}"]==True]
+        extrema_only = ohlc[ohlc[f"{extrema_type}_extremes_{distance}"]==True]
         return extrema_only
 
     '''
@@ -111,3 +106,27 @@ class TickerProcessing:
         both_high_low_df.sort_values("t", inplace=True, kind="heapsort") 
         return both_high_low_df
 
+    '''
+    extrema_df -> must have columns with highs and lows
+    above_last_num_highs -> number of n previous highs you want current to be higher of
+
+
+    In order to draw valid trendlines, I only want to draw trendlines of stock that are
+    in a trend
+
+    '''
+    def identify_higher_highs(self, extrema_df, distance, above_last_num_highs):
+        # get all highs only
+        highs_df = extrema_df[extrema_df[f"h_extremes_{distance}"]==True]
+        hh_query = ""
+        for cons_high in range(1, above_last_num_highs+1):
+            # find the difference between current high and n previous high
+            highs_df[f"hh{cons_high}"] = highs_df["h"].diff(cons_high)
+            hh_query = hh_query + f" hh{cons_high} > 0 &"
+
+        hh_query = hh_query[:-1]
+
+        # select highs to remove (their difference is negative)
+        higher_highs_and_lows = highs_df.query(hh_query)
+
+        return higher_highs_and_lows

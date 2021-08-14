@@ -38,7 +38,6 @@ class FlatDBProssesedMod:
 
     '''
     def save_extrema_on_tickers(self, multiple, timespan, distance, list_raw_ticker_file_names):
-        # TODO -> think of how to to handle  timeframe access
         # determine 
         try:
             dir_params = str(multiple) + " " + timespan
@@ -50,6 +49,7 @@ class FlatDBProssesedMod:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
 
+        processing_obj = TickerProcessing()
         for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
                 self.printing_lock.acquire()
@@ -64,7 +64,7 @@ class FlatDBProssesedMod:
             full_processed_file_name = ticker_name + extreme_dir_obj.suffix
             file_present = extreme_dir_obj.verify_path_existence(full_processed_file_name)
 
-            # if processed file exists, append to the file, only examine last portion of
+            # if processed file exists, append to the file, only examine last portion of it
             if file_present:
                 # get the date of the last extrema
                 ticker_high_low_df = extreme_dir_obj.retrieve_data(full_processed_file_name)
@@ -74,18 +74,17 @@ class FlatDBProssesedMod:
                 piece_raw_to_process = stock_df.iloc[index_last_extrema_in_raw - distance*2:, :]
                 piece_raw_to_process = piece_raw_to_process.reset_index()
                 # find extrema
-                processing_obj = TickerProcessing(piece_raw_to_process)
-                new_lows_highs_df = processing_obj.identify_both_lows_highs(distance)
+                new_lows_highs_df = processing_obj.identify_both_lows_highs(piece_raw_to_process, distance)
                 # if there's no data to update, don't update anything
                 if len(new_lows_highs_df) == 0:
                     continue
                 # append to existing highs / lows
                 both_old_new_extrema = pd.concat([ticker_high_low_df, new_lows_highs_df])
                 extreme_dir_obj.update_data(ticker_name, both_old_new_extrema)
+            # process entire new 
             else:
                 # get lows and highs
-                processing_obj = TickerProcessing(stock_df)
-                high_low_df = processing_obj.identify_both_lows_highs(distance=distance)
+                high_low_df = processing_obj.identify_both_lows_highs(stock_df,distance=distance)
                 # dont save anything if there are no extremas to record
                 if len(high_low_df) == 0:
                     continue

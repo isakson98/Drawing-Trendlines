@@ -105,14 +105,15 @@ class Trendline_Drawing:
         # find trendlines from each high
         for index, local_extreme in enumerate(extreme_points):
             progress = round(index / len(extreme_points) * 100)
-            print(f"{progress}% done")
+            if progress % 10 == 0 and progress != 0:
+                print(f"{progress}% done")
             timestamp_local_extreme = self.ohlc_all_df.at[local_extreme, "t"]
             trendline_count = 0
             days_forward = min_days_out
             end_index = local_extreme # I count trendlines at least of 5 days
             crossed_trendline = False
             # iterate each day until the end of data or length is too big
-            while local_extreme + days_forward < self.ohlc_all_df.index[-1] - 1 and days_forward <= 252: #121 is half a year
+            while local_extreme + days_forward < self.ohlc_all_df.index[-1] - 1 and days_forward <= 63: #121 is half a year
                 end_index = local_extreme + days_forward
                 data1 = self.ohlc_all_df.loc[local_extreme:end_index,:].copy()
                 # draw the trendline through linear regression
