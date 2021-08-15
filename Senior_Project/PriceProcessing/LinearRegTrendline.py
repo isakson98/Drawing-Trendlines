@@ -30,11 +30,14 @@ a way that it is conveninient to use this data later on.
 class Trendline_Drawing:
 
     ohlc_all_df = pd.DataFrame()
+    breakout_based_on = None
 
     '''
     params:
         ohlc_raw -> raw data from Polygon API
         extrema_df -> processed highs and lows (with Polygons API columns)
+        breakout_based_on -> allows to specify the criteria for a breakout (programmable)
+                            allowed values so far "close" and 
 
     At this momement in time, to draw a trendline, I need two things:
     the raw data and the starting points of each trendline in advance
@@ -44,7 +47,7 @@ class Trendline_Drawing:
     I need to merge the two together to make to perform calculations in this class
 
     '''
-    def __init__(self, ohlc_raw, extrema_df):
+    def __init__(self, ohlc_raw, extrema_df, breakout_based_on, accept_descend_only, accept_ascend_only):
         # find same columns to merge on 
         ohlc_raw_cols = set(ohlc_raw.columns.tolist())
         same_cols = list(ohlc_raw_cols.intersection(extrema_df.columns.tolist()))
@@ -54,12 +57,17 @@ class Trendline_Drawing:
         total_df.fillna(False, inplace=True)
         self.ohlc_all_df = total_df
 
+        self.breakout_based_on = breakout_based_on
+
+        self.accept_descend_only = accept_descend_only
+        self.accept_ascend_only = accept_ascend_only
+
 
     '''
     calculate_lin_reg() accomodates finding both
     ascending and descending trendlines
     '''
-    def calculate_lin_reg(self, ohlc_portion, x_index, y_prices, extreme):
+    def __calculate_lin_reg(self, ohlc_portion, x_index, y_prices, extreme):
         reg = linregress(x=x_index,y=y_prices)
         if extreme == "h":
             data1 = ohlc_portion.loc[y_prices > reg[0] * x_index + reg[1] ]
@@ -92,7 +100,7 @@ class Trendline_Drawing:
     '''
     # TODO compartmentalize to accomodate which section to build a trendline on
     # TODO merge ascending and descending trendline into if possible
-    def identify_trendlines_LinReg(self, distance, extrema_type, start=None, end=None, min_days_out=5, precisesness=4, max_trendlines_drawn=3):
+    def identify_trendlines_LinReg(self, distance, extrema_type, precisesness, start=None, end=None, min_days_out=5, max_trendlines_drawn=3):
 
         # if a start date is not given, assume the entire chart for a trendline 
         if start != None:
@@ -102,59 +110,56 @@ class Trendline_Drawing:
         extreme_points  = self.ohlc_all_df [self.ohlc_all_df [f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
         trendlines_start_end_points = []
 
-        # find trendlines from each high
+        # find trendlines from each local extrema
         for index, local_extreme in enumerate(extreme_points):
+            # keep track of progress
             progress = round(index / len(extreme_points) * 100)
-            if progress % 10 == 0 and progress != 0:
+            if progress % 20 == 0 and progress != 0:
                 print(f"{progress}% done")
+
+            # initialize values
             timestamp_local_extreme = self.ohlc_all_df.at[local_extreme, "t"]
             trendline_count = 0
             days_forward = min_days_out
-            end_index = local_extreme # I count trendlines at least of 5 days
+            end_index = None 
             crossed_trendline = False
+
             # iterate each day until the end of data or length is too big
-            while local_extreme + days_forward < self.ohlc_all_df.index[-1] - 1 and days_forward <= 63: #121 is half a year
+            while local_extreme + days_forward < self.ohlc_all_df.index[-1] - 1 and days_forward <= 42: # 42 is 2 month period
                 end_index = local_extreme + days_forward
-                data1 = self.ohlc_all_df.loc[local_extreme:end_index,:].copy()
+                data1 = self.ohlc_all_df.loc[local_extreme:end_index,:].copy() # end is included
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
                 while len(data1) > precisesness and trendline_count < max_trendlines_drawn: #TODO -> fix hyperparameter number 2
 
-                    #  slope, intercept, r, p, se = linregress(x, y)
-                    data1, reg = self.calculate_lin_reg(data1, data1.index, data1[extrema_type], extrema_type)
+                    # calculate linear regression on a slice of days after the starting point
+                    data1, reg = self.__calculate_lin_reg(data1, data1.index, data1[extrema_type], extrema_type)
 
                     # do not check trendlines until we have cut enough of data
                     if len(data1) != precisesness:
                         continue
 
-                    # if current high is above computed trendline that ends on previous candle ->
-                    # this is a break out
-                    roll_std = data1.loc[end_index - min_days_out:end_index, extrema_type].std() / 2
-                    trendline_start_price = self.ohlc_all_df.loc[local_extreme,extrema_type] 
-                    trendline_pos_new_day = reg[0] * (end_index + 1) + reg[1] 
+                    # get price at which trendline would be on the next day, the day it could breakout 
+                    index_of_breakout_day = end_index + 1
+                    trendline_price_last_day = reg[0] * (index_of_breakout_day) + reg[1] 
+                    it_really_did = self.breakout_happend(trendline_price_last_day, local_extreme, index_of_breakout_day, extrema_type)
+                    if it_really_did:
+                        it_really_did = self.breakout_happend(trendline_price_last_day, local_extreme, index_of_breakout_day, extrema_type)
 
-                    timestamp_end_trend = self.ohlc_all_df.at[end_index + 1, "t"]
-                   
-                    
-                    # using breakouts's day close as the pivot point
-                    if trendline_pos_new_day + roll_std < self.ohlc_all_df.loc[end_index + 1,"c"] and extrema_type =="h" and crossed_trendline == False:
+                    # theres no breakout, iterate through breakout, without counting each next day as a trendline breakout
+                    # wait the breakout passed, so you can start counting a new breakout from the same starting local extrema
+                    if it_really_did and crossed_trendline == False:
+                        # gather data to pass to a function which will determine if a breakout happened
+                        trendline_start_price = self.ohlc_all_df.loc[local_extreme,extrema_type]
+                        # get the timestamp of the day 
+                        timestamp_end_trend = self.ohlc_all_df.at[index_of_breakout_day, "t"]
                         current_start_endpoints = [(timestamp_local_extreme, trendline_start_price),
-                                                    (timestamp_end_trend, trendline_pos_new_day)]
+                                                    (timestamp_end_trend, trendline_price_last_day)]
                         trendlines_start_end_points.append(current_start_endpoints)
                         trendline_count += 1
                         crossed_trendline = True
-
-                    elif trendline_pos_new_day - roll_std > self.ohlc_all_df.loc[end_index + 1,"c"] and extrema_type =="l" and crossed_trendline == False:
-                        current_start_endpoints = [(timestamp_local_extreme, trendline_start_price),
-                                                    (timestamp_end_trend, trendline_pos_new_day)]
-                        trendlines_start_end_points.append(current_start_endpoints)
-                        trendline_count += 1
-                        crossed_trendline = True
-                    # theres no breakout
-                    elif trendline_pos_new_day > self.ohlc_all_df.loc[end_index + 1,extrema_type] and extrema_type =="h" and crossed_trendline == True:
-                        crossed_trendline = False
-
-                    elif trendline_pos_new_day < self.ohlc_all_df.loc[end_index + 1,extrema_type] and extrema_type =="l" and crossed_trendline == True:
+                    # BOTH MUST BE PRESENT TO REACTIVATE TRENDLINE COUNTING
+                    elif not it_really_did and crossed_trendline == True:
                         crossed_trendline = False
                 
                 days_forward += 1
@@ -162,3 +167,86 @@ class Trendline_Drawing:
         technicals_df = pd.DataFrame({"points":trendlines_start_end_points})
 
         return technicals_df
+
+    '''
+    params:
+        trendline_pos_bo_day -> the price of trendline at the breakout day
+        local_extreme_index -> index of the starting point of the trendline on the total dataframe
+        index_of_breakout_day -> index of breakout on the total dataframe
+        extrema_type -> what the lin reg is calculated on
+
+    this function has options for how to determine a breakout. It is updeatable
+
+    returns:   
+        boolean -> True if breakout occured / False if not
+    
+    '''
+    # TODO : think whether I want to separate logic where user gets involved and the engine is,
+    #  so a user does not think he can change the logic in the engine, too.
+    def breakout_happend(self, trendline_pos_bo_day, local_extreme_index, index_of_breakout_day, extrema_type):
+        # get the half of standard deviation in the period of the range
+        roll_std = self.ohlc_all_df.loc[local_extreme_index:index_of_breakout_day-1, extrema_type].std() / 4
+
+        # shortened variable names. bo => breakout
+        up_pivot_price  = trendline_pos_bo_day + roll_std
+        down_pivot_price  = trendline_pos_bo_day - roll_std 
+        bo_day_open = self.ohlc_all_df.loc[index_of_breakout_day,"o"] 
+        bo_day_high = self.ohlc_all_df.loc[index_of_breakout_day,"h"] 
+        bo_day_low = self.ohlc_all_df.loc[index_of_breakout_day,"l"]
+        bo_day_close = self.ohlc_all_df.loc[index_of_breakout_day,"c"]
+
+        # simply close above/below pivot point
+        if self.breakout_based_on == "any close":
+            # using breakouts's day close as the pivot point
+            if up_pivot_price < bo_day_close and  extrema_type =="h":
+                return True
+            elif down_pivot_price > bo_day_close and extrema_type =="l":
+                return True
+            else:
+                return False
+
+        # closed above/below pivot point AND green/red in the proper direction
+        elif self.breakout_based_on == "strong close":
+            # using breakouts's day close as the pivot point
+            if up_pivot_price < bo_day_close and bo_day_close > bo_day_open and extrema_type =="h":
+                return True
+            elif down_pivot_price > bo_day_close and bo_day_open > bo_day_close and  extrema_type =="l":
+                return True
+            else:
+                return False
+
+        # based on the stock crossing the price of the pivot on the day. doesn't matter if happened once and closed weak
+        elif self.breakout_based_on == "initial spike":
+            # using breakouts's day close as the pivot point
+            if up_pivot_price < bo_day_high and extrema_type =="h":
+                return True
+            elif down_pivot_price > bo_day_low and extrema_type =="l":
+                return True
+            else:
+                return False
+    '''
+    params:
+        trendlines_df -> dataframe straight from self.identify_trendlines_LinReg()
+
+    remove trendlines where the end price of the trendline is higher than origin
+
+    returns:
+        descending_df -> same columns 
+    '''
+    def remove_ascending_trendlines(self, trendlines_df):
+
+         return descending_df
+    
+    '''
+    params:
+        trendlines_df -> dataframe straight from self.identify_trendlines_LinReg()
+
+    remove trendlines where the end price of the trendline is higher than origin
+
+    returns:
+        ascending_df -> same columns 
+    '''
+    def remove_descending_trendlines(self, trendlines_df):
+         
+         
+         return ascending_df

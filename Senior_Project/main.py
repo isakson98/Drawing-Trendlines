@@ -35,7 +35,7 @@ import pandas as pd
 
 if __name__ == '__main__':
 
-    STOCK_TO_VISUALIZE = "COF"
+    STOCK_TO_VISUALIZE = "AAPL"
     raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
     raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
@@ -43,15 +43,10 @@ if __name__ == '__main__':
     extrema_df = extrema_obj.retrieve_data(STOCK_TO_VISUALIZE+extrema_obj.suffix)
 
     tick_obj = TickerProcessing()
-    higher_highs = tick_obj.identify_higher_highs(extrema_df, distance=5, above_last_num_highs=2)
+    higher_highs = tick_obj.get_higher_extrema(extrema_df, extrema="h", distance=5, above_last_num_highs=2)
     
-    for prec in [3,4,5,6,8,10]:
-        trendline_obj = Trendline_Drawing(raw_df, higher_highs)
+    for prec in [3,4,6]:
+        trendline_obj = Trendline_Drawing(raw_df, higher_highs, breakout_based_on="strong close")
         trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, extrema_type="h", precisesness=prec, max_trendlines_drawn=2)
         visualize_ticker(raw_df, higher_highs, trendline_df)
 
-    # raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-    # raw_file_names = raw_obj.retrieve_all_file_names()
-    # partial_params = {'multiple':1, 'timespan':"day", 'distance':5}
-    # pross_mod_obj = FlatDBProssesedMod()
-    # pross_mod_obj.parallel_save_extrema(partial_params, raw_file_names, 7)

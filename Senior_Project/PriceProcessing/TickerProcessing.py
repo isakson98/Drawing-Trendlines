@@ -107,26 +107,33 @@ class TickerProcessing:
         return both_high_low_df
 
     '''
-    extrema_df -> must have columns with highs and lows
-    above_last_num_highs -> number of n previous highs you want current to be higher of
-
+    params:
+        extrema_df -> must have columns with highs and lows
+        extrema -> either highs "h" or lows "l"
+        above_last_num_highs -> number of n previous highs/lows you want current extrema to be higher than
 
     In order to draw valid trendlines, I only want to draw trendlines of stock that are
-    in a trend
+    in a trend.
+
+    Can get either higher highs or higher lows
+
+    returns:
+        higher_highs_and_lows -> only higher highs portion
 
     '''
-    def identify_higher_highs(self, extrema_df, distance, above_last_num_highs):
+    def get_higher_extrema(self, extrema_df, extrema, distance, above_last_num_highs):
         # get all highs only
-        highs_df = extrema_df[extrema_df[f"h_extremes_{distance}"]==True]
-        hh_query = ""
+        highs_df = extrema_df[extrema_df[f"{extrema}_extremes_{distance}"]==True]
+        higher_extrema_query = ""
         for cons_high in range(1, above_last_num_highs+1):
             # find the difference between current high and n previous high
-            highs_df[f"hh{cons_high}"] = highs_df["h"].diff(cons_high)
-            hh_query = hh_query + f" hh{cons_high} > 0 &"
+            highs_df[f"h{extrema}{cons_high}"] = highs_df[extrema].diff(cons_high)
+            higher_extrema_query = higher_extrema_query + f" h{extrema}{cons_high} > 0 &"
 
-        hh_query = hh_query[:-1]
+        higher_extrema_query = higher_extrema_query[:-1]
 
         # select highs to remove (their difference is negative)
-        higher_highs_and_lows = highs_df.query(hh_query)
+        higher_highs = highs_df.query(higher_extrema_query)
 
-        return higher_highs_and_lows
+        return higher_highs
+
