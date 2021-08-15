@@ -186,7 +186,7 @@ class Trendline_Drawing:
     #  so a user does not think he can change the logic in the engine, too.
     def breakout_happend(self, trendline_pos_bo_day, local_extreme_index, index_of_breakout_day, extrema_type):
         # get the half of standard deviation in the period of the range
-        roll_std = self.ohlc_all_df.loc[local_extreme_index:index_of_breakout_day-1, extrema_type].std() / 4
+        roll_std = self.ohlc_all_df.loc[local_extreme_index:index_of_breakout_day-1, extrema_type].std() / 2
 
         # shortened variable names. bo => breakout
         up_pivot_price  = trendline_pos_bo_day + roll_std
@@ -235,6 +235,10 @@ class Trendline_Drawing:
         descending_df -> same columns 
     '''
     def remove_ascending_trendlines(self, trendlines_df):
+
+        if "price_start" not in trendlines_df.columns:
+            print('''Cannot remove trendlines. There is "price_start" column in trendlines_df''')
+            return trendlines_df
         
         descending_df = trendlines_df[(trendlines_df["price_start"] > trendlines_df["price_end"] )]
 
@@ -250,6 +254,10 @@ class Trendline_Drawing:
         ascending_df -> same columns 
     '''
     def remove_descending_trendlines(self, trendlines_df):
+
+        if "price_start" not in trendlines_df.columns:
+            print('''Cannot remove trendlines. There is "price_start" column in trendlines_df''')
+            return trendlines_df
 
         ascending_df = trendlines_df[(trendlines_df["price_start"] < trendlines_df["price_end"] )]
          
