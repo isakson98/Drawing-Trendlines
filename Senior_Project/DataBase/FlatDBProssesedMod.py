@@ -1,9 +1,7 @@
 
 import pandas as pd
 import numpy as np
-import concurrent.futures
 from  random import shuffle
-from functools import partial
 import multiprocessing as mp
 
 from DataBase.DataFlatDB import DataFlatDB
@@ -106,13 +104,6 @@ class FlatDBProssesedMod:
         # shuffle to distribute file sizes evenly
         shuffle(list_raw_ticker_file_names)
         ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
-        # “freezes” some portion of a function’s arguments and/or keywords resulting
-        # in a new object with a simplified signature
-        # apply_partial_extrema = partial(self.save_extrema_on_tickers, 
-        #                         multiple=partial_fun_params["multiple"], 
-        #                         timespan=partial_fun_params["timespan"],
-        #                         distance=partial_fun_params["distance"])
-        # apply_partial_extrema(list_raw_ticker_file_names=ticker_pieces[0])
         processes = []
         for i in range(n_core):
             p = mp.Process(target=self.save_extrema_on_tickers, args=(partial_fun_params["multiple"], 

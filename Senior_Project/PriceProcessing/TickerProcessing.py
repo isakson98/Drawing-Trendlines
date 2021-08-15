@@ -113,7 +113,8 @@ class TickerProcessing:
         above_last_num_highs -> number of n previous highs/lows you want current extrema to be higher than
 
     In order to draw valid trendlines, I only want to draw trendlines of stock that are
-    in a trend.
+    in a trend. This particular function filters existing lows and highs to leave only those
+    that are above its preceding n-lows or n-highs, respectively.
 
     Can get either higher highs or higher lows
 
@@ -130,6 +131,7 @@ class TickerProcessing:
             highs_df[f"h{extrema}{cons_high}"] = highs_df[extrema].diff(cons_high)
             higher_extrema_query = higher_extrema_query + f" h{extrema}{cons_high} > 0 &"
 
+        # take out last "&"
         higher_extrema_query = higher_extrema_query[:-1]
 
         # select highs to remove (their difference is negative)

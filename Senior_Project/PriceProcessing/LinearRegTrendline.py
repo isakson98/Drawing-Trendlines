@@ -47,7 +47,7 @@ class Trendline_Drawing:
     I need to merge the two together to make to perform calculations in this class
 
     '''
-    def __init__(self, ohlc_raw, extrema_df, breakout_based_on, accept_descend_only, accept_ascend_only):
+    def __init__(self, ohlc_raw, extrema_df, breakout_based_on):
         # find same columns to merge on 
         ohlc_raw_cols = set(ohlc_raw.columns.tolist())
         same_cols = list(ohlc_raw_cols.intersection(extrema_df.columns.tolist()))
@@ -56,11 +56,7 @@ class Trendline_Drawing:
         # replace NaNs with false
         total_df.fillna(False, inplace=True)
         self.ohlc_all_df = total_df
-
         self.breakout_based_on = breakout_based_on
-
-        self.accept_descend_only = accept_descend_only
-        self.accept_ascend_only = accept_ascend_only
 
 
     '''
@@ -108,7 +104,8 @@ class Trendline_Drawing:
 
         # retrieve index values where high extremes are
         extreme_points  = self.ohlc_all_df [self.ohlc_all_df [f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
-        trendlines_start_end_points = []
+        row_list = []
+        row_dict = {"t_start":0, "t_end":0, "price_start":0, "price_end":0}
 
         # find trendlines from each local extrema
         for index, local_extreme in enumerate(extreme_points):
@@ -142,9 +139,10 @@ class Trendline_Drawing:
                     # get price at which trendline would be on the next day, the day it could breakout 
                     index_of_breakout_day = end_index + 1
                     trendline_price_last_day = reg[0] * (index_of_breakout_day) + reg[1] 
-                    it_really_did = self.breakout_happend(trendline_price_last_day, local_extreme, index_of_breakout_day, extrema_type)
-                    if it_really_did:
-                        it_really_did = self.breakout_happend(trendline_price_last_day, local_extreme, index_of_breakout_day, extrema_type)
+                    it_really_did = self.breakout_happend(trendline_price_last_day, 
+                                                          local_extreme, 
+                                                          index_of_breakout_day, 
+                                                          extrema_type)
 
                     # theres no breakout, iterate through breakout, without counting each next day as a trendline breakout
                     # wait the breakout passed, so you can start counting a new breakout from the same starting local extrema
@@ -153,9 +151,13 @@ class Trendline_Drawing:
                         trendline_start_price = self.ohlc_all_df.loc[local_extreme,extrema_type]
                         # get the timestamp of the day 
                         timestamp_end_trend = self.ohlc_all_df.at[index_of_breakout_day, "t"]
-                        current_start_endpoints = [(timestamp_local_extreme, trendline_start_price),
-                                                    (timestamp_end_trend, trendline_price_last_day)]
-                        trendlines_start_end_points.append(current_start_endpoints)
+                        # save trendline
+                        row_dict = {"t_start":timestamp_local_extreme, 
+                                    "t_end":timestamp_end_trend, 
+                                    "price_start":trendline_start_price, 
+                                    "price_end":trendline_price_last_day}
+                        row_list.append(row_dict)
+                        # trendline upkeeping
                         trendline_count += 1
                         crossed_trendline = True
                     # BOTH MUST BE PRESENT TO REACTIVATE TRENDLINE COUNTING
@@ -164,9 +166,8 @@ class Trendline_Drawing:
                 
                 days_forward += 1
 
-        technicals_df = pd.DataFrame({"points":trendlines_start_end_points})
-
-        return technicals_df
+        trendlines_df = pd.DataFrame(row_list)
+        return trendlines_df
 
     '''
     params:
@@ -234,8 +235,10 @@ class Trendline_Drawing:
         descending_df -> same columns 
     '''
     def remove_ascending_trendlines(self, trendlines_df):
+        
+        descending_df = trendlines_df[(trendlines_df["price_start"] > trendlines_df["price_end"] )]
 
-         return descending_df
+        return descending_df
     
     '''
     params:
@@ -247,6 +250,7 @@ class Trendline_Drawing:
         ascending_df -> same columns 
     '''
     def remove_descending_trendlines(self, trendlines_df):
+
+        ascending_df = trendlines_df[(trendlines_df["price_start"] < trendlines_df["price_end"] )]
          
-         
-         return ascending_df
+        return ascending_df

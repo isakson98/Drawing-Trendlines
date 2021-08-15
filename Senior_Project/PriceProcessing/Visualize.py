@@ -47,11 +47,11 @@ def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame(),
     fig = go.Figure(data = all_data)
     fig.update_yaxes(fixedrange = False)
 
-    for i, r in trendlines.iterrows():
-        fig.add_trace(go.Scatter(x=[r["points"][0][0], r["points"][-1][0]],
-                                 y=[r["points"][0][1], r["points"][-1][1]],
+    for row in trendlines.itertuples():
+        fig.add_trace(go.Scatter(x=[row.t_start, row.t_end],
+                                 y=[row.price_start, row.price_end],
                                  mode="lines",
                                  line=go.scatter.Line(color="black"),
-                                 showlegend=False))
+                                 showlegend=True))
 
     fig.show()
