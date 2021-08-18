@@ -36,7 +36,7 @@ class FlatDBProssesedMod:
 
     '''
     def save_extrema_on_tickers(self, multiple, timespan, distance, list_raw_ticker_file_names):
-        # determine 
+        # verify that the directories exist 
         try:
             dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']

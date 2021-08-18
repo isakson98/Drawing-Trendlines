@@ -12,6 +12,101 @@ class TickerProcessing:
 
     '''
     params:
+        ohlc -> raw data to operate on
+        distance -> number of candles passed after which, if price fails to make a new low,
+                    a candle is considered an extreme
+                    
+    To perform linear regression well (meaning draw a clear trendline) 
+    more than once on one chart, I need to be able to assign starting points
+    and end points to the lines.
+
+    returns:
+        extrema_only
+    '''
+    def improved_identify_lows(self, ohlc, distance):
+
+        # if too short, don't consider it
+        if len(ohlc) <= distance * 4:
+            return pd.DataFrame()
+
+        if "l" not in ohlc.columns:
+            raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
+
+        ohlc[f"l_extremes_{distance}"] = False
+
+        for i in range(len(ohlc)):
+            # skip to avoid index out of bounds
+            if i < distance * 2:
+                continue
+            # get earliest value of the distance specified
+            earliest_index = i - distance * 2
+            most_extreme_price = ohlc.loc[earliest_index : i, "l"].min()
+            n_index = i - distance
+            price_n_distance = ohlc.at[n_index, "l"]
+
+            # compare if earlist is the most extreme in the range given
+            if price_n_distance == most_extreme_price:
+                ohlc.at[n_index, f"l_extremes_{distance}"] = True
+        
+        # the ends of the period are not reliable, due to the lack of data
+        ohlc.at[:distance*2, f"l_extremes_{distance}"] = False
+        ohlc.at[len(ohlc)-distance:, f"l_extremes_{distance}"] = False
+        # return only extremas
+        extrema_only = ohlc[ohlc[f"l_extremes_{distance}"]==True]
+
+        extrema_only.reset_index(inplace=True,drop=True)
+
+        return extrema_only
+    '''
+    params:
+        ohlc -> raw data to operate on
+        distance -> number of candles passed after which, if price fails to make a new HIGH,
+                    a candle is considered an extreme
+                    
+    To perform linear regression well (meaning draw a clear trendline) 
+    more than once on one chart, I need to be able to assign starting points
+    and end points to the lines.
+
+    returns:
+        extrema_only
+    '''
+    def improved_identify_highs(self, ohlc, distance):
+
+        # if too short, don't consider it
+        if len(ohlc) <= distance * 4:
+            return pd.DataFrame()
+
+        if "h" not in ohlc.columns:
+            raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
+
+        ohlc[f"h_extremes_{distance}"] = False
+
+        for i in range(len(ohlc)):
+            # skip to avoid index out of bounds
+            if i < distance * 2:
+                continue
+            # get earliest value of the distance specified
+            earliest_index = i - distance * 2
+            most_extreme_price = ohlc.loc[earliest_index : i, "h"].max()
+            n_index = i - distance
+            price_n_distance = ohlc.at[n_index, "h"]
+
+            # compare if earlist is the most extreme in the range given
+            if price_n_distance == most_extreme_price:
+                ohlc.at[n_index, f"h_extremes_{distance}"] = True
+        
+        # the ends of the period are not reliable, due to the lack of data
+        ohlc.at[:distance*2, f"h_extremes_{distance}"] = False
+        ohlc.at[len(ohlc)-distance:, f"h_extremes_{distance}"] = False
+        # return only extremas
+        extrema_only = ohlc[ohlc[f"h_extremes_{distance}"]==True]
+
+        extrema_only.reset_index(inplace=True,drop=True)
+
+        return extrema_only
+
+    '''
+    params:
         extrema_type -> "h"/ "high" or "l" / "low" acceptable only, per naming conventions in the 
         distance -> number of candles passed after which, if price fails to make a new extreme 
                     high or low, a candle is considered an extreme
@@ -26,10 +121,6 @@ class TickerProcessing:
     returns:
         extrema_only
     '''
-    # TODO make less if statements
-    # TODO -> save highs and lows to dataframe 
-    # concerns -> 1. what if i want several distance columns
-    #             2. what if i want to update high/lows columns
     def identify_lows_highs(self, ohlc, extrema_type, distance):
 
         # if too short, don't consider it
@@ -93,9 +184,9 @@ class TickerProcessing:
         both_high_low_df -> either empty Dataframe if nothing to append or new highs/lows DF
 
     '''
-    def identify_both_lows_highs(self, distance):
-        highs_stock_df = self.identify_lows_highs(extrema_type="h", distance=distance)
-        lows_stock_df = self.identify_lows_highs(extrema_type="l", distance=distance)
+    def identify_both_lows_highs(self, ohlc, distance):
+        highs_stock_df = self.improved_identify_highs(ohlc, distance=distance)
+        lows_stock_df = self.improved_identify_lows(ohlc, distance=distance)
 
         if len(highs_stock_df) == 0 and len(lows_stock_df) == 0:
             return pd.DataFrame()
@@ -138,4 +229,20 @@ class TickerProcessing:
         higher_highs = highs_df.query(higher_extrema_query)
 
         return higher_highs
+
+    '''
+    params:
+        ticker_volume_series -> "v" volume column only
+        distance -> range of candles
+    
+    This function calculates average volume for a ticker (agnostic to timeframe and its multiple)
+
+    returns:
+        average_v_series
+    '''
+    def get_average_volume(self, ticker_volume_series: pd.Series(), distance):
+
+        average_v_series = ticker_volume_series.rolling(distance).mean()
+
+        return average_v_series
 

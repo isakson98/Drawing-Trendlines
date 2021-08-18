@@ -94,6 +94,7 @@ class CommonScripts:
         dir_list = popular_paths['historical 1 day']["dir_list"]
         refresh_obj = DataFlatDB(dir_list)
         raw_file_names = refresh_obj.retrieve_all_file_names()
+        return raw_file_names
 
     #############################################################################   
     # update daily candles for all current tickers
@@ -110,7 +111,7 @@ class CommonScripts:
         # get higher highs
         higher_highs = tick_obj.get_higher_extrema(extrema_df, extrema="h", distance=5, above_last_num_highs=2)
         # get highs that are higher than previous higher highs
-        # higher_highs = tick_obj.get_higher_extrema(higher_highs, extrema="h", distance=5, above_last_num_highs=1)
+        higher_highs = tick_obj.get_higher_extrema(higher_highs, extrema="h", distance=5, above_last_num_highs=1)
 
         return higher_highs
 
@@ -131,8 +132,3 @@ class CommonScripts:
             desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
             visualize_ticker(raw_df, def_higher_highs, desc_trendlines)
 
-
-
-
-if __name__ == '__main__':
-    pass

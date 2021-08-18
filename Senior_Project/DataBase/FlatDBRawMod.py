@@ -4,11 +4,15 @@ import pandas as pd
 import numpy as np
 import threading
 import datetime as dt
+import multiprocessing as mp
+
 
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.DataDownload import DataDownload
 from DataBase.popular_paths import popular_paths
 from DataBase.StockScreener import NasdaqStockScreener
+
+from PriceProcessing.TickerProcessing import TickerProcessing
 
 TOTAL_THREADS = 10
 
@@ -20,6 +24,9 @@ class FlatDBRawMod:
     flat_db = None
     current_df = None
     lock = threading.Lock()
+
+    ticker_proc_obj = TickerProcessing()
+
     # by default, i am assuming I am going to deal with current tickers
     # likely to change, but that's what I am staying with for now
     def __init__(self):
@@ -254,4 +261,77 @@ class FlatDBRawMod:
 
         final_mili_timestamp = floor(final_mili_timestamp)
         return int(final_mili_timestamp * 1000)
+
+
+    
+    def add_freshest_average_volume(self, multiple, timespan, list_raw_ticker_file_names):
+
+        # verify that the directories exist 
+        try:
+            # get param value
+            dir_params = str(multiple) + " " + timespan
+            # 
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            # 
+            dir_list = popular_paths[f'extrema {dir_params}']['dir_list']
+            extreme_dir_obj = DataFlatDB(dir_list)
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+
+        processing_obj = TickerProcessing()
+        for index, file_name in enumerate(list_raw_ticker_file_names):
+            if index % 100 == 0 and index != 0:
+                self.printing_lock.acquire()
+                print(f"Process identified extrema on {index} tickers")
+                self.printing_lock.release()
+                
+            # retrieve raw price data
+            stock_df = raw_data_obj.retrieve_data(file_name)
+            # verify processed file existence
+            file_name_content = file_name.split("_")
+            ticker_name = file_name_content[0]
+            full_processed_file_name = ticker_name + extreme_dir_obj.suffix
+            file_present = extreme_dir_obj.verify_path_existence(full_processed_file_name)
+
+            # if processed file exists, append to the file, only examine last portion of it
+            if file_present: 
+                pass
+            else:
+                pass
+
+    '''
+    params:
+        partial_fun_params -> dictionary that contains: multiple, timespan, distance keys
+        list_raw_ticker_file_names -> list of file names of raw prices fetched 
+                                      (could be different each time, either all or only current)
+        n_core -> number of processes spawned during this function 
+
+    this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
+    up the work
+
+    '''
+    def parallel_workload(self, operation, partial_fun_params, list_raw_ticker_file_names, n_core):
+        # shuffle to distribute file sizes evenly
+        shuffle(list_raw_ticker_file_names)
+        ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
+        processes = []
+        for i in range(n_core):
+            p = mp.Process(target=operation, args=(partial_fun_params["multiple"], 
+                                                                      partial_fun_params["timespan"],
+                                                                      partial_fun_params["distance"],
+                                                                      ticker_pieces[i],))
+            p.daemon = True # kills this child process if the main program exits
+            processes.append(p)
+        [x.start() for x in processes]
+        [x.join() for x in processes]
+
+
+
+        
+
+
+
 

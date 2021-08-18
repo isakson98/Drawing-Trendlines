@@ -127,7 +127,7 @@ class Trendline_Drawing:
                 data1 = self.ohlc_all_df.loc[local_extreme:end_index,:].copy() # end is included
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
-                while len(data1) > precisesness and trendline_count < max_trendlines_drawn: #TODO -> fix hyperparameter number 2
+                while len(data1) > precisesness and trendline_count < max_trendlines_drawn:
 
                     # calculate linear regression on a slice of days after the starting point
                     data1, reg = self.__calculate_lin_reg(data1, data1.index, data1[extrema_type], extrema_type)
