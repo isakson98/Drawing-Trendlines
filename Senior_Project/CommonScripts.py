@@ -81,11 +81,11 @@ class CommonScripts:
     #############################################################################   
     # update daily candles for all current tickers
     ############################################################################# 
-    def update_last_prices_current_tickers(self):
+    def update_last_daily_prices_current_tickers(self):
         refresh_obj = FlatDBRawMod()
         params = popular_paths['historical 1 day']["params"]
         dir_list = popular_paths['historical 1 day']["dir_list"]
-        refresh_obj.threaded_add_new_price_data(dir_list, params, update=False)
+        refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
     #############################################################################   
     # update daily candles for all current tickers
@@ -131,4 +131,18 @@ class CommonScripts:
 
             desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
             visualize_ticker(raw_df, def_higher_highs, desc_trendlines)
+
+    #############################################################################   
+    # update daily candles raw volume
+    ############################################################################# 
+    def add_latest_avg_vol_to_raw_daily(self):
+        data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+        daily_raw_file_names = data_obj.retrieve_all_file_names()
+
+        partial_fun_params = {'multiple' : 1, 'timespan' : 'day', 'candle_window' : 20,}
+        flat_db_manip_obj = FlatDBRawMod()
+        flat_db_manip_obj.parallel_ticker_workload(proc_function = flat_db_manip_obj.add_freshest_average_volume, 
+                                                partial_fun_params=partial_fun_params,
+                                                list_raw_ticker_file_names=daily_raw_file_names,
+                                                n_core=7)
 

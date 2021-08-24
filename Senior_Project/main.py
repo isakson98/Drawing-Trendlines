@@ -34,16 +34,7 @@ import pandas as pd
 
 
 if __name__ == '__main__':
-    com_scr_obj = CommonScripts()
-    com_scr_obj.draw_descending_trendline_on_bullish_stock("FLGC")
 
-    STOCK = "FLGC"
-
-    data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-    data_df = data_obj.retrieve_data(STOCK + data_obj.suffix)
-    days_window = 20
-
-    processing_obj = TickerProcessing()
-    data_df[f"avg_v_{days_window}"] = processing_obj.get_average_volume(data_df["v"], days_window)
-
+    common_obj = CommonScripts()
+    common_obj.add_latest_avg_vol_to_raw_daily()
     

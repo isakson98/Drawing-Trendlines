@@ -3,8 +3,11 @@ from math import floor
 import pandas as pd
 import numpy as np
 import threading
+import multiprocessing
 import datetime as dt
 import multiprocessing as mp
+from  random import shuffle
+from functools import partial
 
 
 from DataBase.DataFlatDB import DataFlatDB
@@ -23,7 +26,8 @@ class FlatDBRawMod:
 
     flat_db = None
     current_df = None
-    lock = threading.Lock()
+    thread_lock = threading.Lock()
+    proc_lock = multiprocessing.Lock()
 
     ticker_proc_obj = TickerProcessing()
 
@@ -184,9 +188,9 @@ class FlatDBRawMod:
         for index, ticker in enumerate(list_tickers):
 
             if index % 100 == 0:
-                self.lock.acquire()
+                self.thread_lock.acquire()
                 print(f"{index} tickers processed by a thread")  
-                self.lock.release()  
+                self.thread_lock.release()  
 
             to_stamp = self.__choose_final_timestamp()
             full_file_name = ticker + dir_suffix
@@ -262,20 +266,31 @@ class FlatDBRawMod:
         final_mili_timestamp = floor(final_mili_timestamp)
         return int(final_mili_timestamp * 1000)
 
-
+    '''
+    params:
+        list_raw_ticker_file_names -> list of file names to process
+        kwargs -> multiple, timespan, days_window, 
     
-    def add_freshest_average_volume(self, multiple, timespan, list_raw_ticker_file_names):
+    this function adds freshest average volume 
+
+    required kwargs -> multiple, timespan, days_window, 
+    
+    '''
+    def add_freshest_average_volume(self, list_raw_ticker_file_names, **kwargs):
+        # turning off the warning
+        pd.options.mode.chained_assignment = None  # default='warn'
+
+        # unpacking key word arguments
+        multiple = kwargs["multiple"]
+        timespan = kwargs["timespan"]
+        candle_window = kwargs["candle_window"]
 
         # verify that the directories exist 
-        try:
-            # get param value
-            dir_params = str(multiple) + " " + timespan
-            # 
+        # get param value
+        dir_params = str(multiple) + " " + timespan
+        try: 
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']
             raw_data_obj = DataFlatDB(dir_list)
-            # 
-            dir_list = popular_paths[f'extrema {dir_params}']['dir_list']
-            extreme_dir_obj = DataFlatDB(dir_list)
         except:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
@@ -284,27 +299,50 @@ class FlatDBRawMod:
         processing_obj = TickerProcessing()
         for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
-                self.printing_lock.acquire()
+                self.proc_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
-                self.printing_lock.release()
+                self.proc_lock.release()
                 
             # retrieve raw price data
             stock_df = raw_data_obj.retrieve_data(file_name)
-            # verify processed file existence
-            file_name_content = file_name.split("_")
-            ticker_name = file_name_content[0]
-            full_processed_file_name = ticker_name + extreme_dir_obj.suffix
-            file_present = extreme_dir_obj.verify_path_existence(full_processed_file_name)
+
+            avg_vol_col_name = f"avg_v_{candle_window}"
 
             # if processed file exists, append to the file, only examine last portion of it
-            if file_present: 
-                pass
+            if avg_vol_col_name in stock_df.columns:
+                # find the last element volume row where there is a value
+                index = pd.isna(stock_df[f"avg_v_{candle_window}"].loc[candle_window:])
+                empty = index[index==True]
+                # fresh data no changes needed
+                if len(empty) == 0:
+                    continue
+                empty = empty.index.tolist()
+                first_empty_avg_vol = empty[0] 
+                # get a copy of n-last rows before it
+                vol_series = stock_df["v"].iloc[first_empty_avg_vol - candle_window + 1:]
+                # get avg vol for entire column
+                avg_vol_series = processing_obj.get_average_volume(vol_series, candle_window)
+                # attach new series to old ones
+                stock_df[f"avg_v_{candle_window}"].iloc[first_empty_avg_vol:] = avg_vol_series.loc[first_empty_avg_vol:]
+                # get ticker name to save data
+                raw_data_obj.update_data(file_name, stock_df, keep_old=False)
+
+            # process entire new 
             else:
-                pass
+                # get avg vol for entire column
+                try:
+                    stock_df[avg_vol_col_name] = processing_obj.get_average_volume(stock_df["v"], candle_window)
+                except:
+                    self.proc_lock.acquire()
+                    print(f"issues calculating volume in {file_name}")
+                    self.proc_lock.release()
+                # get ticker name to save data
+                raw_data_obj.update_data(file_name, stock_df, keep_old=False)
 
     '''
     params:
-        partial_fun_params -> dictionary that contains: multiple, timespan, distance keys
+        proc_function -> specifies the function in this class you want to work on
+        partial_fun_params -> dictionary that contains anything but the ticker list (kwargs)
         list_raw_ticker_file_names -> list of file names of raw prices fetched 
                                       (could be different each time, either all or only current)
         n_core -> number of processes spawned during this function 
@@ -313,25 +351,16 @@ class FlatDBRawMod:
     up the work
 
     '''
-    def parallel_workload(self, operation, partial_fun_params, list_raw_ticker_file_names, n_core):
+    def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_raw_ticker_file_names:list, n_core:int):
         # shuffle to distribute file sizes evenly
         shuffle(list_raw_ticker_file_names)
         ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
         processes = []
         for i in range(n_core):
-            p = mp.Process(target=operation, args=(partial_fun_params["multiple"], 
-                                                                      partial_fun_params["timespan"],
-                                                                      partial_fun_params["distance"],
-                                                                      ticker_pieces[i],))
+            p = mp.Process(target=proc_function, args=(ticker_pieces[i],), kwargs=partial_fun_params)
             p.daemon = True # kills this child process if the main program exits
             processes.append(p)
         [x.start() for x in processes]
         [x.join() for x in processes]
-
-
-
-        
-
-
 
 
