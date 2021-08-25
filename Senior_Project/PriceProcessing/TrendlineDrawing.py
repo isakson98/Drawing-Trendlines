@@ -22,14 +22,16 @@ ex. where to start a trendline, where to end a trendline,
     which attribute to draw a column on (highs, lows, vwap),
     length of trendline, 
 
+TIMEFRAME AGNOSTIC -> only price matters 
+
 the job of this class is to not only calculate trendlines
 but do it efficiently and report these trendlines in such
 a way that it is conveninient to use this data later on.
 
 '''
-class Trendline_Drawing:
+class TrendlineDrawing:
 
-    ohlc_all_df = pd.DataFrame()
+    raw_ohlc = pd.DataFrame()
     breakout_based_on = None
 
     '''
@@ -48,15 +50,9 @@ class Trendline_Drawing:
 
     '''
     def __init__(self, ohlc_raw, starting_extrema_df, breakout_based_on):
-        # find same columns to merge on 
-        ohlc_raw_cols = set(ohlc_raw.columns.tolist())
-        same_cols = list(ohlc_raw_cols.intersection(starting_extrema_df.columns.tolist()))
-        # merge two dataframes
-        total_df = pd.merge(left=ohlc_raw, right=starting_extrema_df, how="left", on=same_cols)
-        # replace NaNs with false
-        total_df.fillna(False, inplace=True)
-        self.ohlc_all_df = total_df
+        self.raw_ohlc = ohlc_raw
         self.breakout_based_on = breakout_based_on
+        self.starting_extrema_df = starting_extrema_df
 
 
     '''
@@ -75,13 +71,14 @@ class Trendline_Drawing:
 
     '''
     params:
-        distance ->
-        extrema_type ->
-        start ->
-        end ->
-        min_days_out ->
-        preciseness ->
-        max_trendlines_drawn ->
+        distance -> starting extrema's parameter
+        extrema_type -> starting price of the trendline ("h", "low", etc) -> 
+                        make sure they are calculated ahead of time
+        start -> determining where to start the process of looking for trendline
+        end -> determining where to end the process of looking for trendline
+        min_days_out -> how many days to pass to start drawing a trendline
+        preciseness -> how many "touches" do you your trendline to have
+        max_trendlines_drawn -> maximum trendlines drawn from one starting position
 
     allows to specify which range of values you want a trendline to be drawn at
     calculating trendlines based on the price candles
@@ -94,15 +91,14 @@ class Trendline_Drawing:
 
     '''
     # TODO compartmentalize to accomodate which section to build a trendline on
-    # TODO merge ascending and descending trendline into if possible
     def identify_trendlines_LinReg(self, distance, extrema_type, precisesness, start=None, end=None, min_days_out=5, max_trendlines_drawn=3):
 
         # if a start date is not given, assume the entire chart for a trendline 
         if start != None:
-            self.ohlc_all_df = self.ohlc_all_df[start:end]
+            self.raw_ohlc = self.raw_ohlc[start:end]
 
         # retrieve index values where high extremes are
-        extreme_points  = self.ohlc_all_df [self.ohlc_all_df [f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
+        extreme_points  = self.starting_extrema_df[self.starting_extrema_df[f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
         row_list = []
         row_dict = {"t_start":0, "t_end":0, "price_start":0, "price_end":0}
 
@@ -114,16 +110,16 @@ class Trendline_Drawing:
                 print(f"{progress}% done")
 
             # initialize values
-            timestamp_local_extreme = self.ohlc_all_df.at[local_extreme, "t"]
+            timestamp_local_extreme = self.raw_ohlc.at[local_extreme, "t"]
             trendline_count = 0
             days_forward = min_days_out
             end_index = None 
             crossed_trendline = False
 
             # iterate each day until the end of data or length is too big
-            while local_extreme + days_forward < self.ohlc_all_df.index[-1] - 1 and days_forward <= 42: # 42 is 2 month period
+            while local_extreme + days_forward < self.raw_ohlc.index[-1] - 1 and days_forward <= 42: # 42 is 2 month period -> max for my preference
                 end_index = local_extreme + days_forward
-                data1 = self.ohlc_all_df.loc[local_extreme:end_index,:].copy() # end is included
+                data1 = self.raw_ohlc.loc[local_extreme:end_index,:].copy() # end is included
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
                 while len(data1) > precisesness and trendline_count < max_trendlines_drawn:
@@ -147,9 +143,9 @@ class Trendline_Drawing:
                     # wait the breakout passed, so you can start counting a new breakout from the same starting local extrema
                     if it_really_did and crossed_trendline == False:
                         # gather data to pass to a function which will determine if a breakout happened
-                        trendline_start_price = self.ohlc_all_df.loc[local_extreme,extrema_type]
+                        trendline_start_price = self.raw_ohlc.loc[local_extreme,extrema_type]
                         # get the timestamp of the day 
-                        timestamp_end_trend = self.ohlc_all_df.at[index_of_breakout_day, "t"]
+                        timestamp_end_trend = self.raw_ohlc.at[index_of_breakout_day, "t"]
                         # save trendline
                         row_dict = {"t_start":timestamp_local_extreme, 
                                     "t_end":timestamp_end_trend, 
@@ -175,7 +171,11 @@ class Trendline_Drawing:
         index_of_breakout_day -> index of breakout on the total dataframe
         extrema_type -> what the lin reg is calculated on
 
-    this function has options for how to determine a breakout. It is updeatable
+    this function has options for how to determine a breakout. It is UPDATEABLE,
+    meaning a user can modify when he considers a breakout to have occured.
+
+    Insert new versions as if statements, name this version appropriately, and
+    add it to a constructor
 
     returns:   
         boolean -> True if breakout occured / False if not
@@ -185,15 +185,15 @@ class Trendline_Drawing:
     #  so a user does not think he can change the logic in the engine, too.
     def breakout_happend(self, trendline_pos_bo_day, local_extreme_index, index_of_breakout_day, extrema_type):
         # get the half of standard deviation in the period of the range
-        roll_std = self.ohlc_all_df.loc[local_extreme_index:index_of_breakout_day-1, extrema_type].std() / 2
+        roll_std = self.raw_ohlc.loc[local_extreme_index:index_of_breakout_day-1, extrema_type].std() / 2
 
         # shortened variable names. bo => breakout
         up_pivot_price  = trendline_pos_bo_day + roll_std
         down_pivot_price  = trendline_pos_bo_day - roll_std 
-        bo_day_open = self.ohlc_all_df.loc[index_of_breakout_day,"o"] 
-        bo_day_high = self.ohlc_all_df.loc[index_of_breakout_day,"h"] 
-        bo_day_low = self.ohlc_all_df.loc[index_of_breakout_day,"l"]
-        bo_day_close = self.ohlc_all_df.loc[index_of_breakout_day,"c"]
+        bo_day_open = self.raw_ohlc.loc[index_of_breakout_day,"o"] 
+        bo_day_high = self.raw_ohlc.loc[index_of_breakout_day,"h"] 
+        bo_day_low = self.raw_ohlc.loc[index_of_breakout_day,"l"]
+        bo_day_close = self.raw_ohlc.loc[index_of_breakout_day,"c"]
 
         # simply close above/below pivot point
         if self.breakout_based_on == "any close":
@@ -228,7 +228,10 @@ class Trendline_Drawing:
     params:
         trendlines_df -> dataframe straight from self.identify_trendlines_LinReg()
 
-    remove trendlines where the end price of the trendline is higher than origin
+    remove trendlines where the end price of the trendline is higher than origin.
+    
+    Decided to have this function outside of the main trendline drawing function 
+    to avoid clustering too many things in it.
 
     returns:
         descending_df -> same columns 

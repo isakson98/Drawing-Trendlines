@@ -9,7 +9,7 @@ to develop features
 
 
 '''
-class TickerProcessing:
+class RawPriceProcessing:
 
     '''
     params:
@@ -21,6 +21,8 @@ class TickerProcessing:
     To perform linear regression well (meaning draw a clear trendline) 
     more than once on one chart, I need to be able to assign starting points
     and end points to the lines.
+
+    AGNOSTIC TO TIMEFRAME
 
     returns:
         extrema_only

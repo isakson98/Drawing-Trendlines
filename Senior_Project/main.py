@@ -19,8 +19,8 @@ from DataBase.DataFlatDB import DataFlatDB
 from DataBase.FlatDBRawMod import FlatDBRawMod  
 
 # price processsing module
-from PriceProcessing.TickerProcessing import TickerProcessing
-from PriceProcessing.LinearRegTrendline import Trendline_Drawing
+from PriceProcessing.RawPriceProcessing import RawPriceProcessing
+from PriceProcessing.TrendlineDrawing import TrendlineDrawing
 from PriceProcessing.Visualize import visualize_ticker
 
 # popular scripts, combination of all modules features above
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 
     comm_obj = CommonScripts()
-    comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="BX")
+    comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="FUTU")
 
     # visualize_ticker(ohlc_data=raw_df, peaks=highs_df)
 

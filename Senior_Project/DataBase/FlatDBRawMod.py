@@ -15,7 +15,7 @@ from DataBase.DataDownload import DataDownload
 from DataBase.popular_paths import popular_paths
 from DataBase.StockScreener import NasdaqStockScreener
 
-from PriceProcessing.TickerProcessing import TickerProcessing
+from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 
 TOTAL_THREADS = 5
 TOTAL_PROCESSES = 5
@@ -33,7 +33,7 @@ class FlatDBRawMod:
     thread_lock = threading.Lock()
     proc_lock = multiprocessing.Lock()
 
-    ticker_proc_obj = TickerProcessing()
+    ticker_proc_obj = RawPriceProcessing()
 
     # by default, i am assuming I am going to deal with current tickers
     # likely to change, but that's what I am staying with for now
@@ -152,7 +152,6 @@ class FlatDBRawMod:
         portion_tickers = len(tickers_to_update) // TOTAL_THREADS
 
         # split up the work evenly among threads
-        # TODO -> use threadpoolexecutor to retrieve data and deal nicely with joins
         list_threads = list()
         for thread in range(TOTAL_THREADS):
 
@@ -270,6 +269,9 @@ class FlatDBRawMod:
         final_mili_timestamp = floor(final_mili_timestamp)
         return int(final_mili_timestamp * 1000)
 
+    # TODO: make sure you determine whether you accept full file names or just tickers
+    #       as arguments, not both, especially in the same class!
+
     '''
     params:
         list_raw_ticker_file_names -> list of raw prices file names to read from
@@ -282,7 +284,7 @@ class FlatDBRawMod:
     create new files with highs and lows for all tickers (current and delisted)
 
     '''
-    def add_freshest_extrema_on_tickers(self, list_raw_ticker_file_names, **kwargs):
+    def add_freshest_extrema_on_tickers(self, list_ticker_names, **kwargs):
         multiple, timespan, distance = kwargs['multiple'], kwargs['timespan'], kwargs['distance']
         # verify that the directories exist 
         try:
@@ -293,8 +295,8 @@ class FlatDBRawMod:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
 
-        processing_obj = TickerProcessing()
-        for index, file_name in enumerate(list_raw_ticker_file_names):
+        processing_obj = RawPriceProcessing()
+        for index, file_name in enumerate(list_ticker_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
@@ -358,7 +360,7 @@ class FlatDBRawMod:
     required kwargs -> multiple, timespan, days_window, 
     
     '''
-    def add_freshest_average_volume(self, list_raw_ticker_file_names, **kwargs):
+    def add_freshest_average_volume(self, list_ticker_names, **kwargs):
 
         # unpacking key word arguments
         multiple, timespan, candle_window = kwargs["multiple"], kwargs["timespan"], kwargs["candle_window"]
@@ -374,8 +376,8 @@ class FlatDBRawMod:
             raise ValueError(error_statement)
 
 
-        processing_obj = TickerProcessing()
-        for index, file_name in enumerate(list_raw_ticker_file_names):
+        processing_obj = RawPriceProcessing()
+        for index, file_name in enumerate(list_ticker_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
@@ -428,10 +430,10 @@ class FlatDBRawMod:
     up the work
 
     '''
-    def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_raw_ticker_file_names:list):
+    def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_ticker_names:list):
         # shuffle to distribute file sizes evenly
-        shuffle(list_raw_ticker_file_names)
-        ticker_pieces = np.array_split(list_raw_ticker_file_names, TOTAL_PROCESSES)
+        shuffle(list_ticker_names)
+        ticker_pieces = np.array_split(list_ticker_names, TOTAL_PROCESSES)
         processes = []
         for i in range(TOTAL_PROCESSES):
             p = mp.Process(target=proc_function, args=(ticker_pieces[i],), kwargs=partial_fun_params)
