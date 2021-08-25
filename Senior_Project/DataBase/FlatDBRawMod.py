@@ -7,7 +7,7 @@ import multiprocessing
 import datetime as dt
 import multiprocessing as mp
 from  random import shuffle
-from functools import partial
+
 
 
 from DataBase.DataFlatDB import DataFlatDB
@@ -17,7 +17,11 @@ from DataBase.StockScreener import NasdaqStockScreener
 
 from PriceProcessing.TickerProcessing import TickerProcessing
 
-TOTAL_THREADS = 10
+TOTAL_THREADS = 5
+TOTAL_PROCESSES = 5
+
+# turning off the warning
+pd.options.mode.chained_assignment = None  # default='warn'
 
 '''
 This class will be used for common DB modifications
@@ -268,8 +272,86 @@ class FlatDBRawMod:
 
     '''
     params:
+        list_raw_ticker_file_names -> list of raw prices file names to read from
+
+        **kwargs -> multiple, timespan, distance
+            multiple -> a number that is an aggregate of a timespan 
+            timespan -> minute / hour / day / week / month (multiple and timespan params go together)
+            distance -> # of candles that pass after extrema to consider it an extrema
+    
+    create new files with highs and lows for all tickers (current and delisted)
+
+    '''
+    def add_freshest_extrema_on_tickers(self, list_raw_ticker_file_names, **kwargs):
+        multiple, timespan, distance = kwargs['multiple'], kwargs['timespan'], kwargs['distance']
+        # verify that the directories exist 
+        try:
+            dir_params = str(multiple) + " " + timespan
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        processing_obj = TickerProcessing()
+        for index, file_name in enumerate(list_raw_ticker_file_names):
+            if index % 100 == 0 and index != 0:
+                self.proc_lock.acquire()
+                print(f"Process identified extrema on {index} tickers")
+                self.proc_lock.release()
+                
+            # retrieve raw price data
+            stock_df = raw_data_obj.retrieve_data(file_name)
+            if len(stock_df) == 0:
+                continue
+
+            extrema_h_col = f"h_extremes_{distance}"
+            extrema_l_col = f"l_extremes_{distance}"
+
+            # if processed file exists, append to the file, only examine last portion of it
+            if extrema_h_col in stock_df.columns or extrema_l_col in stock_df.columns:
+                # get the date of the last extrema
+                # find the last element volume row where there is a value
+                index = pd.isna(stock_df[extrema_h_col])
+                empty = index[index==True]
+                # fresh data -> no changes needed
+                if len(empty) == 0:
+                    continue
+                empty = empty.index.tolist()
+                first_empty_extrema = empty[0]
+                # get the last piece of the raw data to find extrema in
+                piece_raw_to_process = stock_df.iloc[first_empty_extrema - distance*2:, :]
+                piece_raw_to_process = piece_raw_to_process.reset_index()
+                # find extrema
+                extrema_dict = processing_obj.get_both_lows_highs(series_high = piece_raw_to_process['h'], 
+                                                                       series_low  = piece_raw_to_process['l'],
+                                                                       distance    = distance)
+                # if there's no data to update, don't update anything
+                if len(extrema_dict["high"]) == 0:
+                    continue
+                stock_df[extrema_h_col].iloc[first_empty_extrema- distance*2:] = extrema_dict["high"]
+                stock_df[extrema_l_col].iloc[first_empty_extrema- distance*2:] = extrema_dict["low"]
+                # append to existing highs / lows
+                raw_data_obj.update_data(file_name, stock_df, keep_old=False)
+            # process entire new 
+            else:
+                # get lows and highs
+                extrema_dict = processing_obj.get_both_lows_highs(series_high=stock_df['h'],
+                                                                       series_low =stock_df['l'],
+                                                                       distance=distance)
+                stock_df[extrema_h_col] = extrema_dict["high"]
+                stock_df[extrema_l_col] = extrema_dict["low"]
+                # dont save anything if there are no extremas to record
+                if len(stock_df) == 0:
+                    continue
+
+                # get ticker name to save data
+                raw_data_obj.update_data(file_name, stock_df, keep_old=False)
+
+    '''
+    params:
         list_raw_ticker_file_names -> list of file names to process
-        kwargs -> multiple, timespan, days_window, 
+        kwargs -> multiple, timespan, days_window
     
     this function adds freshest average volume 
 
@@ -277,13 +359,9 @@ class FlatDBRawMod:
     
     '''
     def add_freshest_average_volume(self, list_raw_ticker_file_names, **kwargs):
-        # turning off the warning
-        pd.options.mode.chained_assignment = None  # default='warn'
 
         # unpacking key word arguments
-        multiple = kwargs["multiple"]
-        timespan = kwargs["timespan"]
-        candle_window = kwargs["candle_window"]
+        multiple, timespan, candle_window = kwargs["multiple"], kwargs["timespan"], kwargs["candle_window"]
 
         # verify that the directories exist 
         # get param value
@@ -345,18 +423,17 @@ class FlatDBRawMod:
         partial_fun_params -> dictionary that contains anything but the ticker list (kwargs)
         list_raw_ticker_file_names -> list of file names of raw prices fetched 
                                       (could be different each time, either all or only current)
-        n_core -> number of processes spawned during this function 
 
     this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
     up the work
 
     '''
-    def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_raw_ticker_file_names:list, n_core:int):
+    def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_raw_ticker_file_names:list):
         # shuffle to distribute file sizes evenly
         shuffle(list_raw_ticker_file_names)
-        ticker_pieces = np.array_split(list_raw_ticker_file_names, n_core)
+        ticker_pieces = np.array_split(list_raw_ticker_file_names, TOTAL_PROCESSES)
         processes = []
-        for i in range(n_core):
+        for i in range(TOTAL_PROCESSES):
             p = mp.Process(target=proc_function, args=(ticker_pieces[i],), kwargs=partial_fun_params)
             p.daemon = True # kills this child process if the main program exits
             processes.append(p)

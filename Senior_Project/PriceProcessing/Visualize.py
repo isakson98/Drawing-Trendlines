@@ -19,29 +19,34 @@ It adds different colors to what exactly you are checking for (purple for extrem
 
 
 '''
-def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame(), from_=None, to=None,):
+def visualize_ticker(all_ohlc_data, peaks_df:pd.DataFrame(), trendlines=pd.DataFrame(), distance=5, from_=None, to=None,):
 
     price_trace = {
-        'x': ohlc_data.t,
-        'open': ohlc_data.o,
-        'close': ohlc_data.c,
-        'high': ohlc_data.h,
-        'low': ohlc_data.l,
+        'x': all_ohlc_data.t,
+        'open': all_ohlc_data.o,
+        'close': all_ohlc_data.c,
+        'high': all_ohlc_data.h,
+        'low': all_ohlc_data.l,
         'type': 'candlestick',
         'showlegend': True
     }
 
-    peaks_trace = {
-        'x': peaks.t,
-        'open': peaks.o,
-        'close': peaks.c,
-        'high': peaks.h,
-        'low': peaks.l,
-        'type': 'candlestick',
-        'showlegend': True,
-        'increasing' : {'line' : {'color':'purple'}},
-        'decreasing' : {'line' : {'color':'purple'}},
-    }
+    all_data = [go.Candlestick(price_trace)]
+
+    if len(peaks_df) > 0:
+
+        peaks_trace = {
+            'x': peaks_df.t,
+            'open': peaks_df.o,
+            'close': peaks_df.c,
+            'high': peaks_df.h,
+            'low': peaks_df.l,
+            'type': 'candlestick',
+            'showlegend': True,
+            'increasing' : {'line' : {'color':'purple'}},
+            'decreasing' : {'line' : {'color':'purple'}},
+        }
+        # all_data = all_data.append(go.Candlestick(peaks_trace))
 
     all_data = [go.Candlestick(price_trace), go.Candlestick(peaks_trace)]
     fig = go.Figure(data = all_data)
@@ -52,6 +57,6 @@ def visualize_ticker(ohlc_data, peaks=pd.DataFrame(), trendlines=pd.DataFrame(),
                                  y=[row.price_start, row.price_end],
                                  mode="lines",
                                  line=go.scatter.Line(color="black"),
-                                 showlegend=True))
+                                 showlegend=False))
 
     fig.show()

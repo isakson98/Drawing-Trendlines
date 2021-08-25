@@ -47,12 +47,12 @@ class Trendline_Drawing:
     I need to merge the two together to make to perform calculations in this class
 
     '''
-    def __init__(self, ohlc_raw, extrema_df, breakout_based_on):
+    def __init__(self, ohlc_raw, starting_extrema_df, breakout_based_on):
         # find same columns to merge on 
         ohlc_raw_cols = set(ohlc_raw.columns.tolist())
-        same_cols = list(ohlc_raw_cols.intersection(extrema_df.columns.tolist()))
+        same_cols = list(ohlc_raw_cols.intersection(starting_extrema_df.columns.tolist()))
         # merge two dataframes
-        total_df = pd.merge(left=ohlc_raw, right=extrema_df, how="left", on=same_cols)
+        total_df = pd.merge(left=ohlc_raw, right=starting_extrema_df, how="left", on=same_cols)
         # replace NaNs with false
         total_df.fillna(False, inplace=True)
         self.ohlc_all_df = total_df
@@ -75,7 +75,6 @@ class Trendline_Drawing:
 
     '''
     params:
-        extrema_df -> df containing 
         distance ->
         extrema_type ->
         start ->

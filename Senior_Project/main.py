@@ -17,7 +17,6 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 from DataBase.popular_paths import popular_paths
 from DataBase.DataFlatDB import DataFlatDB  
 from DataBase.FlatDBRawMod import FlatDBRawMod  
-from DataBase.FlatDBProssesedMod import FlatDBProssesedMod
 
 # price processsing module
 from PriceProcessing.TickerProcessing import TickerProcessing
@@ -35,6 +34,11 @@ import pandas as pd
 
 if __name__ == '__main__':
 
-    common_obj = CommonScripts()
-    common_obj.add_latest_avg_vol_to_raw_daily()
+
+    comm_obj = CommonScripts()
+    comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="BX")
+
+    # visualize_ticker(ohlc_data=raw_df, peaks=highs_df)
+
+
     

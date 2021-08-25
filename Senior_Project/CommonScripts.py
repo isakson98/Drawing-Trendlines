@@ -41,14 +41,11 @@ class CommonScripts:
     def retrieve_RawPrice_and_Extrema_and_plot_them(self, STOCK_TO_VISUALIZE):
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-
-        extrema_obj = DataFlatDB(popular_paths["extrema 1 day"]["dir_list"])
-        extrema_df = extrema_obj.retrieve_data(STOCK_TO_VISUALIZE+extrema_obj.suffix)
         
-        trendline_obj = Trendline_Drawing(raw_df, extrema_df)
+        trendline_obj = Trendline_Drawing(raw_df, starting_extrema_df=raw_df["h_extremes_5"])
         trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, extrema_type="h", precisesness=2, max_trendlines_drawn=1)
 
-        visualize_ticker(raw_df, extrema_df, trendline_df)
+        visualize_ticker(raw_df, trendline_df)
 
     #############################################################################
     # DOWNLOADING DATA FOR DELISTED TICKERS
@@ -96,48 +93,79 @@ class CommonScripts:
         raw_file_names = refresh_obj.retrieve_all_file_names()
         return raw_file_names
 
+    def retrieve_all_current_ticker_names(self):
+        # retrieve list of current tickers
+        dir_list = popular_paths['current tickers']["dir_list"]
+        db_obj =  DataFlatDB(dir_list)
+        current_df = db_obj.retrieve_data("all_current_tickers.csv")
+        list_cur_tickers = current_df["symbol"].tolist()
+        return list_cur_tickers
+
     #############################################################################   
     # update daily candles for all current tickers
     ############################################################################# 
 
-    def get_higher_highs_one_stock(self, STOCK_TO_VISUALIZE):
-        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
+    def get_higher_highs_one_stock_daily(self, STOCK_TO_VISUALIZE):
 
-        extrema_obj = DataFlatDB(popular_paths["extrema 1 day"]["dir_list"])
-        extrema_df = extrema_obj.retrieve_data(STOCK_TO_VISUALIZE+extrema_obj.suffix)
+        data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+        ohlc_df = data_obj.retrieve_data(STOCK_TO_VISUALIZE+data_obj.suffix)
 
         tick_obj = TickerProcessing()
         # get higher highs
-        higher_highs = tick_obj.get_higher_extrema(extrema_df, extrema="h", distance=5, above_last_num_highs=2)
+        higher_highs = tick_obj.get_higher_extrema(ohlc_df, extrema="h", distance=5, above_last_num_highs=2)
         # get highs that are higher than previous higher highs
         higher_highs = tick_obj.get_higher_extrema(higher_highs, extrema="h", distance=5, above_last_num_highs=1)
 
         return higher_highs
 
+    #############################################################################   
+    # update daily candles raw volume
+    ############################################################################# 
     def draw_descending_trendline_on_bullish_stock(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
         
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
-        def_higher_highs = self.get_higher_highs_one_stock(STOCK_TO_VISUALIZE)
+        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
 
-        for prec in precision:
-            trendline_obj = Trendline_Drawing(raw_df, def_higher_highs, breakout_based_on="strong close")
-            trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, 
-                                                                    extrema_type="h", 
-                                                                    precisesness=prec, 
-                                                                    max_trendlines_drawn=2)  
+        # for prec in precision:
+        #     trendline_obj = Trendline_Drawing(raw_df, starting_extrema_df=def_higher_highs, breakout_based_on="strong close")
+        #     trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, 
+        #                                                             extrema_type="h", 
+        #                                                             precisesness=prec, 
+        #                                                             max_trendlines_drawn=1)  
 
-            desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
-            visualize_ticker(raw_df, def_higher_highs, desc_trendlines)
+        #     desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
+
+        visualize_ticker(all_ohlc_data=raw_df, 
+                            peaks_df=def_higher_highs,
+                            distance=5)
+                            # trendlines=desc_trendlines)
 
     #############################################################################   
     # update daily candles raw volume
     ############################################################################# 
-    def add_latest_avg_vol_to_raw_daily(self):
-        data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        daily_raw_file_names = data_obj.retrieve_all_file_names()
+    def add_latest_avg_vol_to_raw_daily(self, include_delisted):
+
+        if include_delisted:
+            data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+            daily_raw_file_names = data_obj.retrieve_all_file_names()
+
+        else:
+            # retrieve list of current tickers
+            dir_list = popular_paths['current tickers']["dir_list"]
+            db_obj =  DataFlatDB(dir_list)
+            current_df = db_obj.retrieve_data("all_current_tickers.csv")
+            list_cur_tickers = current_df["symbol"].tolist()
+
+            # retrieve suffix of the directory
+            dir_list = popular_paths['historical 1 day']["dir_list"]
+            db_obj.change_dir(dir_list)
+            needed_suf = db_obj.suffix
+
+            # create a list of files names 
+            daily_raw_file_names = [ticker + needed_suf for ticker in list_cur_tickers]
+
 
         partial_fun_params = {'multiple' : 1, 'timespan' : 'day', 'candle_window' : 20,}
         flat_db_manip_obj = FlatDBRawMod()
@@ -145,4 +173,32 @@ class CommonScripts:
                                                 partial_fun_params=partial_fun_params,
                                                 list_raw_ticker_file_names=daily_raw_file_names,
                                                 n_core=7)
+
+    #############################################################################   
+    # update daily candles raw volume (on recent )
+    ############################################################################# 
+    def add_latest_highs_lows_to_raw_daily(self, include_delisted):
+        if include_delisted:
+            data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+            daily_raw_file_names = data_obj.retrieve_all_file_names()
+        else:
+            # retrieve list of current tickers
+            dir_list = popular_paths['current tickers']["dir_list"]
+            db_obj =  DataFlatDB(dir_list)
+            current_df = db_obj.retrieve_data("all_current_tickers.csv")
+            list_cur_tickers = current_df["symbol"].tolist()
+
+            # retrieve suffix of the directory
+            dir_list = popular_paths['historical 1 day']["dir_list"]
+            db_obj.change_dir(dir_list)
+            needed_suf = db_obj.suffix
+
+            # create a list of files names 
+            daily_raw_file_names = [ticker + needed_suf for ticker in list_cur_tickers]
+
+        db_changes_obj = FlatDBRawMod()
+        partial_fun_params = {"multiple" : 1, "timespan" : "day", "distance" : 5}
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_freshest_extrema_on_tickers,
+                                                partial_fun_params=partial_fun_params,
+                                                list_raw_ticker_file_names=daily_raw_file_names)
 

@@ -1,5 +1,6 @@
 
 import pandas as pd
+import numpy as np
 
 '''
 
@@ -12,56 +13,10 @@ class TickerProcessing:
 
     '''
     params:
-        ohlc -> raw data to operate on
-        distance -> number of candles passed after which, if price fails to make a new low,
-                    a candle is considered an extreme
-                    
-    To perform linear regression well (meaning draw a clear trendline) 
-    more than once on one chart, I need to be able to assign starting points
-    and end points to the lines.
-
-    returns:
-        extrema_only
-    '''
-    def improved_identify_lows(self, ohlc, distance):
-
-        # if too short, don't consider it
-        if len(ohlc) <= distance * 4:
-            return pd.DataFrame()
-
-        if "l" not in ohlc.columns:
-            raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
-
-        ohlc[f"l_extremes_{distance}"] = False
-
-        for i in range(len(ohlc)):
-            # skip to avoid index out of bounds
-            if i < distance * 2:
-                continue
-            # get earliest value of the distance specified
-            earliest_index = i - distance * 2
-            most_extreme_price = ohlc.loc[earliest_index : i, "l"].min()
-            n_index = i - distance
-            price_n_distance = ohlc.at[n_index, "l"]
-
-            # compare if earlist is the most extreme in the range given
-            if price_n_distance == most_extreme_price:
-                ohlc.at[n_index, f"l_extremes_{distance}"] = True
-        
-        # the ends of the period are not reliable, due to the lack of data
-        ohlc.at[:distance*2, f"l_extremes_{distance}"] = False
-        ohlc.at[len(ohlc)-distance:, f"l_extremes_{distance}"] = False
-        # return only extremas
-        extrema_only = ohlc[ohlc[f"l_extremes_{distance}"]==True]
-
-        extrema_only.reset_index(inplace=True,drop=True)
-
-        return extrema_only
-    '''
-    params:
-        ohlc -> raw data to operate on
+        price_series -> raw data to operate on
         distance -> number of candles passed after which, if price fails to make a new HIGH,
                     a candle is considered an extreme
+        extrema_type -> specify whether you want to find high or lows
                     
     To perform linear regression well (meaning draw a clear trendline) 
     more than once on one chart, I need to be able to assign starting points
@@ -70,109 +25,45 @@ class TickerProcessing:
     returns:
         extrema_only
     '''
-    def improved_identify_highs(self, ohlc, distance):
+    def improved_identify_extremas(self, price_series : pd.Series(), distance, extrema_type):
 
         # if too short, don't consider it
-        if len(ohlc) <= distance * 4:
-            return pd.DataFrame()
+        if len(price_series) <= distance * 4:
+            return pd.Series()
 
-        if "h" not in ohlc.columns:
-            raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
+        if extrema_type == "high" or extrema_type == "low":
+            prepop_boolean = np.array([False] * len(price_series))
+            extrema_series = pd.Series(data=prepop_boolean)
+        else:
+            raise ValueError("Only 'high' or 'low' allowed for 'extrema_type' arg" ) 
 
-        ohlc[f"h_extremes_{distance}"] = False
-
-        for i in range(len(ohlc)):
+        for i in range(len(price_series)):
             # skip to avoid index out of bounds
             if i < distance * 2:
                 continue
             # get earliest value of the distance specified
             earliest_index = i - distance * 2
-            most_extreme_price = ohlc.loc[earliest_index : i, "h"].max()
+            if extrema_type == "high":
+                most_extreme_price = price_series.loc[earliest_index : i].max()
+            else:
+                most_extreme_price = price_series.loc[earliest_index : i].min()
             n_index = i - distance
-            price_n_distance = ohlc.at[n_index, "h"]
+            price_n_distance = price_series.at[n_index]
 
             # compare if earlist is the most extreme in the range given
             if price_n_distance == most_extreme_price:
-                ohlc.at[n_index, f"h_extremes_{distance}"] = True
+                extrema_series.at[n_index] = True
         
         # the ends of the period are not reliable, due to the lack of data
-        ohlc.at[:distance*2, f"h_extremes_{distance}"] = False
-        ohlc.at[len(ohlc)-distance:, f"h_extremes_{distance}"] = False
-        # return only extremas
-        extrema_only = ohlc[ohlc[f"h_extremes_{distance}"]==True]
+        extrema_series.loc[:distance*2] = False
+        extrema_series.loc[len(price_series)-distance:] = False
 
-        extrema_only.reset_index(inplace=True,drop=True)
-
-        return extrema_only
+        return extrema_series
 
     '''
     params:
-        extrema_type -> "h"/ "high" or "l" / "low" acceptable only, per naming conventions in the 
-        distance -> number of candles passed after which, if price fails to make a new extreme 
-                    high or low, a candle is considered an extreme
-    To perform linear regression well (meaning draw a clear trendline) 
-    more than once on one chart, I need to be able to assign starting points
-    and end points to the lines.
-
-    Starting points brainstorm:
-    -- higher highs / lower highs (easiest)
-    This function will find local extrema that will act as starting points
-
-    returns:
-        extrema_only
-    '''
-    def identify_lows_highs(self, ohlc, extrema_type, distance):
-
-        # if too short, don't consider it
-        if len(ohlc) <= distance * 4:
-            return pd.DataFrame()
-
-        if extrema_type == "h" or extrema_type == "high":
-            extrema_type = "h"
-            isHigh = True
-        elif extrema_type == "l" or extrema_type == "low":
-            extrema_type == "l"
-            isHigh = False
-        else:
-            raise ValueError("Wrong input for extrema_type parameter in identify_lows_highs()")
-
-        ohlc[f"{extrema_type}_extremes_{distance}"] = True
-
-        '''
-        itertuples is much faster than iterrows cause of less type checking
-        name=None refers to creating a pure tuple with no reference to columns
-        in this case, I am not even using the tuple
-        '''
-        for i in range(len(ohlc)):
-            # skip to avoid index out of bounds
-            if i < distance * 2:
-                continue
-            # get earliest value of the distance specified
-            earliest_index = i - distance
-            earliest_price = ohlc.at[earliest_index, extrema_type]
-            # get most extreme value in the range (either low or high)
-            # compare if earliest is the most extreme in the range given
-            # if not mark earliest given time as NOT the extreme
-            if isHigh:
-                most_extreme = ohlc.loc[i - distance * 2 : i, extrema_type].max()
-            if not isHigh:
-                most_extreme = ohlc.loc[i - distance * 2 : i, extrema_type].min()
-
-            # compare if earlist is the most extreme in the range given
-            if earliest_price < most_extreme and isHigh:
-                ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
-            if earliest_price > most_extreme and not isHigh:
-                ohlc.at[i - distance, f"{extrema_type}_extremes_{distance}"] = False
-        
-        # the ends of the period are not reliable, due to the lack of data
-        ohlc.at[:distance*2, f"{extrema_type}_extremes_{distance}"] = False
-        ohlc.at[len(ohlc)-distance:, f"{extrema_type}_extremes_{distance}"] = False
-
-        extrema_only = ohlc[ohlc[f"{extrema_type}_extremes_{distance}"]==True]
-        return extrema_only
-
-    '''
-    params:
+        series_high -> series of highs of each candle to find extremas of
+        series_low -> series of lows of each candle to find extremas of 
         distance -> number of candles passed after which, if price fails to make a new extreme 
                     high or low, a candle is considered an extreme
 
@@ -181,21 +72,14 @@ class TickerProcessing:
     distance and concatanating the two together.
 
     returns:
-        both_high_low_df -> either empty Dataframe if nothing to append or new highs/lows DF
+        dictionary of high extremas and low extremas
 
     '''
-    def identify_both_lows_highs(self, ohlc, distance):
-        highs_stock_df = self.improved_identify_highs(ohlc, distance=distance)
-        lows_stock_df = self.improved_identify_lows(ohlc, distance=distance)
+    def get_both_lows_highs(self, series_high, series_low, distance):
+        extrema_high = self.improved_identify_extremas(series_high, distance=distance, extrema_type="high")
+        extrema_low = self.improved_identify_extremas(series_low, distance=distance, extrema_type="low")
 
-        if len(highs_stock_df) == 0 and len(lows_stock_df) == 0:
-            return pd.DataFrame()
-        # process concatanation
-        both_high_low_df = pd.concat([highs_stock_df, lows_stock_df])
-        both_high_low_df.fillna(False, inplace=True)
-        # heapsort cause "t" always has same num digits get ticker name to save data
-        both_high_low_df.sort_values("t", inplace=True, kind="heapsort") 
-        return both_high_low_df
+        return {"high": extrema_high, "low": extrema_low}
 
     '''
     params:
@@ -213,9 +97,9 @@ class TickerProcessing:
         higher_highs_and_lows -> only higher highs portion
 
     '''
-    def get_higher_extrema(self, extrema_df, extrema, distance, above_last_num_highs):
+    def get_higher_extrema(self, ohlc_df:pd.DataFrame(), extrema:str(), distance:int(), above_last_num_highs:int()):
         # get all highs only
-        highs_df = extrema_df[extrema_df[f"{extrema}_extremes_{distance}"]==True]
+        highs_df = ohlc_df[ohlc_df[f"{extrema}_extremes_{distance}"]==True]
         higher_extrema_query = ""
         for cons_high in range(1, above_last_num_highs+1):
             # find the difference between current high and n previous high
