@@ -35,6 +35,10 @@ import random
 ##################################################################################################
 class CommonScripts:
 
+
+    #############################################################################
+    # RETRIEVING DIRECTORY FILE NAMES OR TICKER SYMBOLS
+    #############################################################################
     '''
     params:
         include_delisted -> true or false whether you want to include delisted as well
@@ -45,28 +49,30 @@ class CommonScripts:
     returns:
         daily_raw_file_names -> list of daily file names (with extensions) but not paths (not needed)
     '''
-    def retrieve_daily_list_file_names(self, include_delisted:bool()):
-        daily_raw_file_names = []
+    def retrieve_ticker_list(self, include_delisted:bool()):
+        ticker_names = []
         if include_delisted:
             data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-            daily_raw_file_names = data_obj.retrieve_all_file_names()
-
+            ticker_names = data_obj.retrieve_all_ticker_names()
         else:
             # retrieve list of current tickers
-            dir_list = popular_paths['current tickers']["dir_list"]
-            db_obj =  DataFlatDB(dir_list)
-            current_df = db_obj.retrieve_data("all_current_tickers.csv")
-            list_cur_tickers = current_df["symbol"].tolist()
+            ticker_names = self.retrieve_all_current_ticker_names()
 
-            # retrieve suffix of the directory
-            dir_list = popular_paths['historical 1 day']["dir_list"]
-            db_obj.change_dir(dir_list)
-            needed_suf = db_obj.suffix
+        return ticker_names
 
-            # create a list of files names 
-            daily_raw_file_names = [ticker + needed_suf for ticker in list_cur_tickers]
+    def retrieve_all_raw_dir_daily_file_names(self):
+        dir_list = popular_paths['historical 1 day']["dir_list"]
+        refresh_obj = DataFlatDB(dir_list)
+        raw_file_names = refresh_obj.retrieve_all_file_names()
+        return raw_file_names
 
-        return daily_raw_file_names
+    def retrieve_all_current_ticker_names(self):
+        # retrieve list of current tickers
+        dir_list = popular_paths['current tickers']["dir_list"]
+        db_obj =  DataFlatDB(dir_list)
+        current_df = db_obj.retrieve_data("all_current_tickers.csv")
+        list_cur_tickers = current_df["symbol"].tolist()
+        return list_cur_tickers
 
     #############################################################################
     # RETRIEVING RAW PRICE AND EXTREMA AND PLOTTING THEM 
@@ -117,22 +123,6 @@ class CommonScripts:
         dir_list = popular_paths['historical 1 day']["dir_list"]
         refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
-    #############################################################################   
-    # update daily candles for all current tickers
-    ############################################################################# 
-    def retrieve_all_raw_dir_data(self):
-        dir_list = popular_paths['historical 1 day']["dir_list"]
-        refresh_obj = DataFlatDB(dir_list)
-        raw_file_names = refresh_obj.retrieve_all_file_names()
-        return raw_file_names
-
-    def retrieve_all_current_ticker_names(self):
-        # retrieve list of current tickers
-        dir_list = popular_paths['current tickers']["dir_list"]
-        db_obj =  DataFlatDB(dir_list)
-        current_df = db_obj.retrieve_data("all_current_tickers.csv")
-        list_cur_tickers = current_df["symbol"].tolist()
-        return list_cur_tickers
 
     #############################################################################   
     # update daily candles for all current tickers
@@ -181,13 +171,13 @@ class CommonScripts:
     def add_latest_avg_vol_to_raw_daily(self, include_delisted):
 
         # create a list of files names 
-        daily_raw_file_names = self.retrieve_daily_list_file_names(include_delisted=include_delisted)
+        daily_available_tickers = self.retrieve_ticker_list(include_delisted=include_delisted)
 
         partial_fun_params = {'multiple' : 1, 'timespan' : 'day', 'candle_window' : 20,}
         flat_db_manip_obj = FlatDBRawMod()
         flat_db_manip_obj.parallel_ticker_workload(proc_function = flat_db_manip_obj.add_freshest_average_volume, 
                                                 partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_file_names,
+                                                list_ticker_names=daily_available_tickers,
                                                 n_core=7)
 
     #############################################################################   
@@ -195,13 +185,13 @@ class CommonScripts:
     ############################################################################# 
     def add_latest_highs_lows_to_raw_daily(self, include_delisted):
         # create a list of files names 
-        daily_raw_file_names = self.retrieve_daily_list_file_names(include_delisted=include_delisted)
+        daily_available_tickers = self.retrieve_ticker_list(include_delisted=include_delisted)
 
         db_changes_obj = FlatDBRawMod()
         partial_fun_params = {"multiple" : 1, "timespan" : "day", "distance" : 5}
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_freshest_extrema_on_tickers,
                                                 partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_file_names)
+                                                list_ticker_names=daily_available_tickers)
 
     #############################################################################   
     # filter through higher highs 
@@ -221,9 +211,10 @@ class CommonScripts:
         #       as arguments, not both, especially in the same class!
 
         # get all tickers 
-        daily_raw_file_names = self.retrieve_daily_list_file_names(include_delisted=include_delisted)
+        daily_raw_file_names = self.retrieve_ticker_list(include_delisted=include_delisted)
 
         # get all higher highs from all tickers
+        
 
         # filter by average volume
 

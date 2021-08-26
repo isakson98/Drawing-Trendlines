@@ -18,13 +18,21 @@ from DataBase.StockScreener import NasdaqStockScreener
 from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 
 TOTAL_THREADS = 5
-TOTAL_PROCESSES = 5
+# TEMP
+TOTAL_PROCESSES = 1
 
 # turning off the warning
 pd.options.mode.chained_assignment = None  # default='warn'
 
 '''
-This class will be used for common DB modifications
+
+This class will be used for common DB modifications in the RAW sub-folder
+
+It utilizes either threads or processess for concurrency, depending on the task.
+It always accepts a list of tickers as a parameter (not the file name) and then 
+attaches the file name
+
+
 '''
 class FlatDBRawMod:
 
@@ -93,6 +101,8 @@ class FlatDBRawMod:
     params:
         dir_list -> top-down list of dirs to the final one, where you want to update
         params -> list of parameters for the Polygon API call
+                  multiplier 
+                  timespan
         tickers_to_update -> empty by default, specific list of tickers you want to update
     
     refresh_directory() -> connects two modules DataFlatDB (os wrapper) and DataDownload to update
@@ -274,12 +284,17 @@ class FlatDBRawMod:
 
     '''
     params:
-        list_raw_ticker_file_names -> list of raw prices file names to read from
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
 
         **kwargs -> multiple, timespan, distance
             multiple -> a number that is an aggregate of a timespan 
             timespan -> minute / hour / day / week / month (multiple and timespan params go together)
             distance -> # of candles that pass after extrema to consider it an extrema
+
+    important to note: this function looks up the proper directory of the files, based 
+    on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
+
+    can be launched by parallel_ticker_workload()
     
     create new files with highs and lows for all tickers (current and delisted)
 
@@ -291,12 +306,16 @@ class FlatDBRawMod:
             dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']
             raw_data_obj = DataFlatDB(dir_list)
+            needed_suf = raw_data_obj.suffix
         except:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
 
+        # create a list of files names 
+        list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+
         processing_obj = RawPriceProcessing()
-        for index, file_name in enumerate(list_ticker_names):
+        for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
@@ -352,12 +371,17 @@ class FlatDBRawMod:
 
     '''
     params:
-        list_raw_ticker_file_names -> list of file names to process
-        kwargs -> multiple, timespan, days_window
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple, 
+                  timespan, 
+                  days_window
     
     this function adds freshest average volume 
 
-    required kwargs -> multiple, timespan, days_window, 
+    important to note: this function looks up the proper directory of the files, based 
+    on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
+
+    can be launched by parallel_ticker_workload()
     
     '''
     def add_freshest_average_volume(self, list_ticker_names, **kwargs):
@@ -365,19 +389,21 @@ class FlatDBRawMod:
         # unpacking key word arguments
         multiple, timespan, candle_window = kwargs["multiple"], kwargs["timespan"], kwargs["candle_window"]
 
-        # verify that the directories exist 
-        # get param value
-        dir_params = str(multiple) + " " + timespan
-        try: 
+       # verify that the directories exist 
+        try:
+            dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']
             raw_data_obj = DataFlatDB(dir_list)
+            needed_suf = raw_data_obj.suffix
         except:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
 
+        # create a list of files names 
+        list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
 
         processing_obj = RawPriceProcessing()
-        for index, file_name in enumerate(list_ticker_names):
+        for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")

@@ -36,7 +36,8 @@ if __name__ == '__main__':
 
 
     comm_obj = CommonScripts()
-    comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="FUTU")
+    # comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="FUTU")
+    comm_obj.get_high_quality_higher_highs(include_delisted=True, avg_v_min=50000)
 
     # visualize_ticker(ohlc_data=raw_df, peaks=highs_df)
 

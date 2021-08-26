@@ -210,8 +210,29 @@ class DataFlatDB:
     return
         big_list list of dataframes in the folder
     '''
-    def retrieve_all_file_names(self) -> pd.DataFrame():
+    def retrieve_all_file_names(self) -> list():
         return os.listdir(self.dir_operated_on)
+
+    '''
+    returns the ticker portion of the file name
+    '''
+    def __retrieve_ticker_name_helper(self, file_name):
+        split_list = file_name.split("_")
+        return split_list[0]
+
+    '''
+
+    you returns every ticker symbol containing in that folder
+    using map() that enacts that function on every element of the iterable
+
+    return
+        all_ticker_names 
+    '''
+    def retrieve_all_ticker_names(self) -> list():
+        all_dir_files = self.retrieve_all_file_names()
+        # convert back to the list object 
+        all_ticker_names = list(map(self.__retrieve_ticker_name_helper, all_dir_files))
+        return all_ticker_names
 
     '''
     params:
