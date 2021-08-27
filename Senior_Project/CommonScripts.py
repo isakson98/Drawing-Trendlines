@@ -173,12 +173,11 @@ class CommonScripts:
         # create a list of files names 
         daily_available_tickers = self.retrieve_ticker_list(include_delisted=include_delisted)
 
-        partial_fun_params = {'multiple' : 1, 'timespan' : 'day', 'candle_window' : 20,}
+        partial_fun_params = {'multiple' : 1, 'timespan' : 'day', 'candle_window' : 20}
         flat_db_manip_obj = FlatDBRawMod()
         flat_db_manip_obj.parallel_ticker_workload(proc_function = flat_db_manip_obj.add_freshest_average_volume, 
-                                                partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_available_tickers,
-                                                n_core=7)
+                                                   partial_fun_params=partial_fun_params,
+                                                   list_ticker_names=daily_available_tickers)
 
     #############################################################################   
     # update daily candles raw volume (on recent )
@@ -187,8 +186,8 @@ class CommonScripts:
         # create a list of files names 
         daily_available_tickers = self.retrieve_ticker_list(include_delisted=include_delisted)
 
-        db_changes_obj = FlatDBRawMod()
         partial_fun_params = {"multiple" : 1, "timespan" : "day", "distance" : 5}
+        db_changes_obj = FlatDBRawMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_freshest_extrema_on_tickers,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_available_tickers)
@@ -205,20 +204,23 @@ class CommonScripts:
     This function is used to detemine useful entry points 
     
     '''
-    def get_high_quality_higher_highs(self, include_delisted, avg_v_min, avg_v_distance=20):
-
-        # TODO: make sure you determine whether you accept full file names or just tickers
-        #       as arguments, not both, especially in the same class!
+    def add_high_quality_higher_highs_daily(self, include_delisted, extrema_distance=5, avg_v_min=50000, avg_v_distance=20):
 
         # get all tickers 
-        daily_raw_file_names = self.retrieve_ticker_list(include_delisted=include_delisted)
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
 
-        # get all higher highs from all tickers
-        
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "extrema_distance":extrema_distance, 
+                              "avg_v_distance" : avg_v_distance,
+                              "avg_v_min":avg_v_min}
 
-        # filter by average volume
+        db_changes_obj = FlatDBRawMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_freshest_extrema_on_tickers,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker)
 
-        # save results?
 
 
 

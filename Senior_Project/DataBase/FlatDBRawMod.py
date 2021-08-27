@@ -279,9 +279,6 @@ class FlatDBRawMod:
         final_mili_timestamp = floor(final_mili_timestamp)
         return int(final_mili_timestamp * 1000)
 
-    # TODO: make sure you determine whether you accept full file names or just tickers
-    #       as arguments, not both, especially in the same class!
-
     '''
     params:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
@@ -444,6 +441,64 @@ class FlatDBRawMod:
                     self.proc_lock.release()
                 # get ticker name to save data
                 raw_data_obj.update_data(file_name, stock_df, keep_old=False)
+    '''
+    params:
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple
+                  timespan
+                  extrema_distance
+                  avg_v_distance
+                  avg_v_min
+
+    this function creates/updates a column named "hq_hh" -> high quality higher highs
+    these are higher highs, filtered further by average volume at the extrema
+    
+    '''
+    def add_high_qual_higher_highs(self, list_ticker_names, **kwargs):
+
+        # unpacking key word arguments
+        multiple, timespan, extrema_distance, avg_v_distance, avg_v_min = kwargs.values()
+
+       # verify that the directories exist 
+        try:
+            dir_params = str(multiple) + " " + timespan
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            needed_suf = raw_data_obj.suffix
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        # create a list of files names 
+        list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+
+        for index, file_name in enumerate(list_raw_ticker_file_names):
+            if index % 100 == 0 and index != 0:
+                self.proc_lock.acquire()
+                print(f"Process identified extrema on {index} tickers")
+                self.proc_lock.release()
+                
+            # retrieve raw price data
+            stock_df = raw_data_obj.retrieve_data(file_name)
+
+            tick_obj = RawPriceProcessing()
+
+            # get higher highs
+            # above_last_num_highs param hardcoded in both functions cause I already experimented with these values
+            higher_highs = tick_obj.get_higher_extrema(stock_df, extrema="h", distance=extrema_distance, above_last_num_highs=2)
+            # get highs that are higher than previous higher highs
+            higher_highs = tick_obj.get_higher_extrema(higher_highs, extrema="h", distance=extrema_distance, above_last_num_highs=1)
+            # filter further by volume
+            higher_highs = higher_highs[higher_highs[f"avg_v_{avg_v_distance}"] > avg_v_min]
+
+            # merge on all same columns
+            # if "on" absent merges on intersection
+            stock_df = pd.merge(left=stock_df, right=higher_highs, how="left")
+
+            print(stock_df.tail(20))
+
+            # get ticker name to save data
+            # raw_data_obj.update_data(file_name, stock_df, keep_old=False)
 
     '''
     params:

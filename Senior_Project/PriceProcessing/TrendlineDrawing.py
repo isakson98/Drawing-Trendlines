@@ -1,15 +1,8 @@
-# using libraries for visualizations
-from threading import local
-import matplotlib.pyplot as plt
-
 # using to access file
-import numpy as np
 import pandas as pd
-import os
 
 # calculating trendlines
 from scipy.stats import linregress
-import datetime as dt
 
 '''
 

@@ -93,6 +93,11 @@ class RawPriceProcessing:
     in a trend. This particular function filters existing lows and highs to leave only those
     that are above its preceding n-lows or n-highs, respectively.
 
+    I am using dataframe query() because i will be creating new columns in a loop and
+    do not know in advance what their names are going to be (they depend on function's params) AND
+    I need to use all of these columns at once.
+    query() allows me to keep track of column names created
+
     Can get either higher highs or higher lows
 
     returns:
