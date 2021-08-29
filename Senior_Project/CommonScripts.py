@@ -217,7 +217,7 @@ class CommonScripts:
                               "avg_v_min":avg_v_min}
 
         db_changes_obj = FlatDBRawMod()
-        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_freshest_extrema_on_tickers,
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_high_qual_higher_highs,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker)
 

@@ -444,14 +444,18 @@ class FlatDBRawMod:
     '''
     params:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
-        kwargs -> multiple
-                  timespan
-                  extrema_distance
-                  avg_v_distance
-                  avg_v_min
+        kwargs -> multiple -> pt.1 dir composition
+                  timespan -> pt.2 dir composition
+                  extrema_distance ->
+                  avg_v_distance -> number of candles average volume of 
+                  avg_v_min -> 5 min volume allowed
 
     this function creates/updates a column named "hq_hh" -> high quality higher highs
     these are higher highs, filtered further by average volume at the extrema
+
+    This is the only function that does not update -> it calculates hh_hq from fresh start.
+
+    This function assumes, you already have the needed columns of high extremas and avg volume
     
     '''
     def add_high_qual_higher_highs(self, list_ticker_names, **kwargs):
@@ -468,6 +472,9 @@ class FlatDBRawMod:
         except:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
+
+        # TODO:
+        # do error checking to verify the needed columns exist
 
         # create a list of files names 
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
@@ -491,14 +498,17 @@ class FlatDBRawMod:
             # filter further by volume
             higher_highs = higher_highs[higher_highs[f"avg_v_{avg_v_distance}"] > avg_v_min]
 
-            # merge on all same columns
-            # if "on" absent merges on intersection
-            stock_df = pd.merge(left=stock_df, right=higher_highs, how="left")
 
-            print(stock_df.tail(20))
+            stock_df["hq_hh"] = False
+
+            # add high quality highs if they are available
+            if len(higher_highs) != 0:
+                stock_df["hq_hh"].loc[stock_df["t"].isin(higher_highs["t"])] = True
+                # hq_hh_only = stock_df[stock_df["hq_hh"] == True]
+                # print(hq_hh_only.tail(20))
 
             # get ticker name to save data
-            # raw_data_obj.update_data(file_name, stock_df, keep_old=False)
+            raw_data_obj.update_data(file_name, stock_df, keep_old=False)
 
     '''
     params:
