@@ -94,13 +94,16 @@ class TrendlineDrawing:
         extreme_points  = self.starting_extrema_df[self.starting_extrema_df[f"{extrema_type}_extremes_{distance}"]==True].index.tolist()
         row_list = []
         row_dict = {"t_start":0, "t_end":0, "price_start":0, "price_end":0}
-
+        printed=False
         # find trendlines from each local extrema
         for index, local_extreme in enumerate(extreme_points):
             # keep track of progress
-            progress = round(index / len(extreme_points) * 100)
-            if progress % 20 == 0 and progress != 0:
+            progress = int(round(index / len(extreme_points) * 100, -1))
+            if progress % 20 == 0 and not printed:
                 print(f"{progress}% done")
+                printed = True
+            elif progress % 20 != 0:
+                printed = False
 
             # initialize values
             timestamp_local_extreme = self.raw_ohlc.at[local_extreme, "t"]
@@ -113,10 +116,12 @@ class TrendlineDrawing:
             while local_extreme + days_forward < self.raw_ohlc.index[-1] - 1 and days_forward <= 42: # 42 is 2 month period -> max for my preference
                 end_index = local_extreme + days_forward
                 data1 = self.raw_ohlc.loc[local_extreme:end_index,:].copy() # end is included
+                prev_data_len = 100 # anything more than 42 is ok (whats greater than days_forward) to init this var
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
-                while len(data1) > precisesness and trendline_count < max_trendlines_drawn:
-
+                while len(data1) > precisesness and trendline_count < max_trendlines_drawn and len(data1) != prev_data_len:
+                    # keeping track of prev allows to mitigate stuck up values
+                    prev_data_len = len(data1)
                     # calculate linear regression on a slice of days after the starting point
                     data1, reg = self.__calculate_lin_reg(data1, data1.index, data1[extrema_type], extrema_type)
 
