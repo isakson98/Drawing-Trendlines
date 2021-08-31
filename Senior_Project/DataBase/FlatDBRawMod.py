@@ -1,12 +1,13 @@
 
-from math import floor
+
 import pandas as pd
 import numpy as np
 import threading
 import multiprocessing
 import datetime as dt
 import multiprocessing as mp
-from  random import shuffle
+from random import shuffle
+from math import floor
 
 
 
@@ -18,8 +19,7 @@ from DataBase.StockScreener import NasdaqStockScreener
 from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 
 TOTAL_THREADS = 5
-# TEMP
-TOTAL_PROCESSES = 1
+TOTAL_PROCESSES = 5
 
 # turning off the warning
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -403,7 +403,7 @@ class FlatDBRawMod:
         for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
-                print(f"Process identified extrema on {index} tickers")
+                print(f"Process identified freshest average volume on {index} tickers")
                 self.proc_lock.release()
                 
             # retrieve raw price data
@@ -482,7 +482,7 @@ class FlatDBRawMod:
         for index, file_name in enumerate(list_raw_ticker_file_names):
             if index % 100 == 0 and index != 0:
                 self.proc_lock.acquire()
-                print(f"Process identified extrema on {index} tickers")
+                print(f"Process identified high quality higher highs on {index} tickers")
                 self.proc_lock.release()
                 
             # retrieve raw price data
@@ -498,14 +498,12 @@ class FlatDBRawMod:
             # filter further by volume
             higher_highs = higher_highs[higher_highs[f"avg_v_{avg_v_distance}"] > avg_v_min]
 
-
             stock_df["hq_hh"] = False
 
             # add high quality highs if they are available
             if len(higher_highs) != 0:
+                # assign to rows True if the timestampe of the row is in higher highs dataframe
                 stock_df["hq_hh"].loc[stock_df["t"].isin(higher_highs["t"])] = True
-                # hq_hh_only = stock_df[stock_df["hq_hh"] == True]
-                # print(hq_hh_only.tail(20))
 
             # get ticker name to save data
             raw_data_obj.update_data(file_name, stock_df, keep_old=False)

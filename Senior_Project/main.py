@@ -34,12 +34,6 @@ import pandas as pd
 
 if __name__ == '__main__':
 
-
     comm_obj = CommonScripts()
-    # comm_obj.draw_descending_trendline_on_bullish_stock(STOCK_TO_VISUALIZE="LVGO")
-    comm_obj.add_high_quality_higher_highs_daily(include_delisted=False, avg_v_min=50000)
-
-    # visualize_ticker(ohlc_data=raw_df, peaks=highs_df)
-
-
+    comm_obj.draw_descending_trendline_on_bullish_stock("AMC")
     

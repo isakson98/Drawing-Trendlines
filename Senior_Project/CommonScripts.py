@@ -80,11 +80,13 @@ class CommonScripts:
     def retrieve_RawPrice_and_Extrema_and_plot_them(self, STOCK_TO_VISUALIZE):
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-        
-        trendline_obj = TrendlineDrawing(raw_df, starting_extrema_df=raw_df["h_extremes_5"])
-        trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, extrema_type="h", precisesness=2, max_trendlines_drawn=1)
+        print(raw_df["t"].head())
+        start_points_list = raw_df.loc[raw_df["h_extremes_5"]==True].index.tolist()
+        trendline_obj = TrendlineDrawing(raw_df, start_points_list= start_points_list,breakout_based_on="strong close")
+        trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", precisesness=2, max_trendlines_drawn=1)
+        print(raw_df["t"].head())
 
-        visualize_ticker(raw_df, trendline_df)
+        visualize_ticker(all_ohlc_data=raw_df, trendlines=trendline_df)
 
     #############################################################################
     # DOWNLOADING DATA FOR DELISTED TICKERS
@@ -150,11 +152,10 @@ class CommonScripts:
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
         def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
-
+        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
         for prec in precision:    
-            trendline_obj = TrendlineDrawing(raw_df, starting_extrema_df=def_higher_highs, breakout_based_on="strong close")
-            trendline_df = trendline_obj.identify_trendlines_LinReg(distance=5, 
-                                                                    extrema_type="h", 
+            trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
+            trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
                                                                     precisesness=prec, 
                                                                     max_trendlines_drawn=1)  
 
