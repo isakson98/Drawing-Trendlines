@@ -68,7 +68,9 @@ class FlatDBProssesedMod:
             hh_hq_t = stock_df["t"].loc[stock_df["hq_hh"]==True]
             # getting the index 
             hh_hq_index_list = hh_hq_t.index.tolist()
-            trendline_obj = TrendlineDrawing(ohlc_raw=stock_df, start_points_list=hh_hq_index_list)
+            trendline_obj = TrendlineDrawing(ohlc_raw=stock_df, 
+                                             start_points_list=hh_hq_index_list, 
+                                             breakout_based_on="strong close")
 
             preciseness = [2, 3, 4, 5, 6]
             trendlines_df = pd.DataFrame()

@@ -14,6 +14,7 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 
 '''
 # database module
+from pandas.core.frame import DataFrame
 from DataBase.popular_paths import popular_paths
 from DataBase.FlatDBRawMod import FlatDBRawMod
 from DataBase.StockScreener import ScreenerProcessor
@@ -166,6 +167,8 @@ class CommonScripts:
                                 distance=5,
                                 trendlines=desc_trendlines)
 
+        
+
     #############################################################################   
     # update daily candles raw volume
     ############################################################################# 
@@ -221,6 +224,57 @@ class CommonScripts:
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_high_qual_higher_highs,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker)
+
+    
+    #############################################################################   
+    # DIAGNOSTICS: measure frequency of repeating trendlines
+    ############################################################################# 
+    def measure_duplicate_trendline_count(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
+        
+        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
+
+        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
+        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
+
+        # composed of starting price and coefficient of the slope
+        trendline_list = []
+        for prec in precision:    
+            trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
+            _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
+                                                                    precisesness=prec, 
+                                                                    max_trendlines_drawn=1)  
+            trendline_list.extend(trendline_obj.already_computed_trendlines)
+
+        # sort by slope
+        trendline_list.sort(key = lambda x : x[1])
+        repeating_trendline_calc_dict = {}
+        match_coef_to_start_price = {}
+        for trendline_piece in trendline_list:
+            slope = trendline_piece[1]
+            # counting the frequency of the same slope in list of trendlines ->  
+            # frequency means how many times the trendline is calculated redundtly since it already exists 
+            repeating_trendline_calc_dict[slope] = repeating_trendline_calc_dict.get(slope, 0) + 1
+            # measuring how many starting price points have the same slope.
+            # im looking for relationship many to one -> starting points to slopes, 
+            # meaning ONLY one starting price per slope, which will make a slope a unique key
+            match_coef_to_start_price[slope] = match_coef_to_start_price.get(slope, trendline_piece)
+            if match_coef_to_start_price[slope][0] != trendline_piece[0]:
+                print("same slope but different starting prices:")
+                print(f"{trendline_piece} and {match_coef_to_start_price[slope]}")
+
+                repeating_df = pd.DataFrame([match_coef_to_start_price[slope][2], trendline_piece[2]])
+                visualize_ticker(raw_df, trendlines=repeating_df)
+                # visualize the difference
+
+        sorted_dict_repeat_slopes = {k: v for k, v in sorted(repeating_trendline_calc_dict.items(), key=lambda item: item[1], reverse=True)}
+        print("Demonstrates how many times a single slope is calculated rendunduntly worst case scenario: ")
+        frequency_most_calculated_lines = list(sorted_dict_repeat_slopes.values())
+        print(frequency_most_calculated_lines[:5])
+        print()
+        sum_trendline_calculations = sum(list(repeating_trendline_calc_dict.values()))
+        print(f"Number of unique trendline: {len(sorted_dict_repeat_slopes)}")
+        print(f"Total number of times trendlines are currently calculated {sum_trendline_calculations}")
 
 
 

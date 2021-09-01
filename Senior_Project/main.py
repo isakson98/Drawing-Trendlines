@@ -35,5 +35,5 @@ import pandas as pd
 if __name__ == '__main__':
 
     comm_obj = CommonScripts()
-    comm_obj.draw_descending_trendline_on_bullish_stock("AMC")
+    comm_obj.measure_duplicate_trendline_count("MSFT")
     

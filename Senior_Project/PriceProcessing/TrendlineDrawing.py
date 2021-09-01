@@ -26,6 +26,8 @@ class TrendlineDrawing:
 
     raw_ohlc = pd.DataFrame()
     breakout_based_on = None
+    # TEMP
+    already_computed_trendlines = []
 
     '''
     params:
@@ -49,17 +51,32 @@ class TrendlineDrawing:
         self.breakout_based_on = breakout_based_on
         self.start_points_list = start_points_list
 
+    def load_new_data(self, ohlc_raw, start_points_list, breakout_based_on):
+        self.raw_ohlc = ohlc_raw
+        self.breakout_based_on = breakout_based_on
+        self.start_points_list = start_points_list
+
 
     '''
+    params: 
+        series_strip -> y values of the linear regression
+        extreme -> either "h" or "l" : whether to filter values that are above the line or below
+
     calculate_lin_reg() accomodates finding both
     ascending and descending trendlines
+
+    ENSURE that the index values are in linear consecutive ascending order (not random 45,71,43)
+
+    this function eliminates values that are either below or above the linear regression, thus,
+    smoothing out the trendline based on the extremas within the consolidation.
+
     '''
-    def __calculate_lin_reg(self, ohlc_portion, x_index, y_prices, extreme):
-        reg = linregress(x=x_index,y=y_prices)
+    def __calculate_lin_reg(self, series_strip, extreme):
+        reg = linregress(x=series_strip.index,y=series_strip)
         if extreme == "h":
-            data1 = ohlc_portion.loc[y_prices > reg[0] * x_index + reg[1] ]
+            data1 = series_strip.loc[series_strip > reg[0] * series_strip.index + reg[1] ]
         elif extreme == "l":
-            data1 = ohlc_portion.loc[y_prices < reg[0] * x_index + reg[1] ]
+            data1 = series_strip.loc[series_strip < reg[0] * series_strip.index + reg[1] ]
 
         return data1, reg
 
@@ -110,22 +127,22 @@ class TrendlineDrawing:
             days_forward = min_days_out
             end_index = None 
             crossed_trendline = False
-
             # iterate each day from the same local extrema until the end of data or length is too big
             while local_extreme + days_forward < self.raw_ohlc.index[-1] - 1 and days_forward <= 42 and trendline_count < max_trendlines_drawn: # 42 is 2 month period -> max for my preference
                 end_index = local_extreme + days_forward
-                data1 = self.raw_ohlc.loc[local_extreme:end_index,:].copy() # end is included
+                # retrieving only piece of series, which will be calculated on
+                series_strip = self.raw_ohlc[line_unit_col].loc[local_extreme:end_index].copy() # end is included
                 prev_data_len = 100 # anything more than 42 is ok (whats greater than days_forward) to init this var
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
-                while len(data1) > precisesness and trendline_count < max_trendlines_drawn and len(data1) != prev_data_len:
+                while len(series_strip) > precisesness and trendline_count < max_trendlines_drawn and len(series_strip) != prev_data_len:
                     # keeping track of prev allows to mitigate stuck up values
-                    prev_data_len = len(data1)
+                    prev_data_len = len(series_strip)
                     # calculate linear regression on a slice of days after the starting point
-                    data1, reg = self.__calculate_lin_reg(data1, data1.index, data1[line_unit_col], line_unit_col)
+                    series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
 
                     # do not check trendlines until we have cut enough of data
-                    if len(data1) != precisesness:
+                    if len(series_strip) != precisesness:
                         continue
 
                     # get price at which trendline would be on the next day, the day it could breakout 
@@ -154,7 +171,7 @@ class TrendlineDrawing:
                         crossed_trendline = False
                 
                 days_forward += 1
-
+            
         trendlines_df = pd.DataFrame(row_list)
         return trendlines_df
 
