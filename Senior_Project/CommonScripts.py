@@ -154,8 +154,8 @@ class CommonScripts:
 
         def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
         start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
+        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
         for prec in precision:    
-            trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
             trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
                                                                     precisesness=prec, 
                                                                     max_trendlines_drawn=1)  
@@ -229,6 +229,10 @@ class CommonScripts:
     #############################################################################   
     # DIAGNOSTICS: measure frequency of repeating trendlines
     ############################################################################# 
+    '''
+    you have to add a member variable list already_computed_trendlines to TrendlineDrawing class that collects
+    data on price, slope
+    '''
     def measure_duplicate_trendline_count(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
         
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
@@ -239,8 +243,8 @@ class CommonScripts:
 
         # composed of starting price and coefficient of the slope
         trendline_list = []
+        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
         for prec in precision:    
-            trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
             _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
                                                                     precisesness=prec, 
                                                                     max_trendlines_drawn=1)  
@@ -262,7 +266,6 @@ class CommonScripts:
             if match_coef_to_start_price[slope][0] != trendline_piece[0]:
                 print("same slope but different starting prices:")
                 print(f"{trendline_piece} and {match_coef_to_start_price[slope]}")
-
                 repeating_df = pd.DataFrame([match_coef_to_start_price[slope][2], trendline_piece[2]])
                 visualize_ticker(raw_df, trendlines=repeating_df)
                 # visualize the difference
@@ -278,4 +281,43 @@ class CommonScripts:
 
 
 
+    def measure_trendline_cache_efficacy(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
+        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
+        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
+        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
+        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
+
+        # composed of starting price and coefficient of the slope
+        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
+        for prec in precision:    
+            _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
+                                                                    precisesness=prec, 
+                                                                    max_trendlines_drawn=2)  
+        
+        dict_trendlines = trendline_obj.trendline_cache
+
+        # stores [count of value frequency, hash_key from trendline class]
+        duplicate_reg = {}
+
+        # i want to find keys that have the same values, and whether i can adjust 
+        # how I create them, so that a new version can encompass duplicates
+        for key in dict_trendlines:
+            series_strip, reg = dict_trendlines[key]
+            # initialize with 0 count as the first element and hash key as the second value
+            duplicate_reg[reg[1]] = duplicate_reg.get(reg[1], [0, key])
+            # add to the frequency
+            duplicate_reg[reg[1]][0] = duplicate_reg[reg[1]][0] + 1
+            if duplicate_reg[reg[1]][0] > 1:
+                print("Duplicate values")
+                print(duplicate_reg[reg[1]][1])
+                print(key)
+                print(series_strip)
+                print()
+
+        sorted_dict_repeat_slopes = {k: v for k, v in sorted(duplicate_reg.items(), key=lambda item: item[1], reverse=True)}
+        print("Demonstrates how many times a single slope is calculated rendunduntly worst case scenario: ")
+        frequency_most_calculated_lines = list(sorted_dict_repeat_slopes.values())
+        print(frequency_most_calculated_lines[:5])
+
+    

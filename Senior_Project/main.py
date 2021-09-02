@@ -13,27 +13,20 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 
 
 '''
-# database module
-from DataBase.popular_paths import popular_paths
-from DataBase.DataFlatDB import DataFlatDB  
-from DataBase.FlatDBRawMod import FlatDBRawMod  
-
-# price processsing module
-from PriceProcessing.RawPriceProcessing import RawPriceProcessing
-from PriceProcessing.TrendlineDrawing import TrendlineDrawing
-from PriceProcessing.Visualize import visualize_ticker
-
 # popular scripts, combination of all modules features above
 from CommonScripts import CommonScripts
-
 # robot made
-import datetime as dt
-import matplotlib.pyplot as plt
-import pandas as pd
+import time
 
 
 if __name__ == '__main__':
-
+    start = time.time()
+    ###################################################################
+    # PLACE SCRIPT BETWEEN THE TWO LINES
+    ###################################################################
     comm_obj = CommonScripts()
-    comm_obj.measure_duplicate_trendline_count("MSFT")
-    
+    # comm_obj.measure_trendline_cache_efficacy("FCX")
+    comm_obj.draw_descending_trendline_on_bullish_stock("MRNA")
+    ###################################################################
+    end = time.time()
+    print(str(end-start) + " seconds")

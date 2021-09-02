@@ -27,7 +27,7 @@ class TrendlineDrawing:
     raw_ohlc = pd.DataFrame()
     breakout_based_on = None
     # TEMP
-    already_computed_trendlines = []
+    trendline_cache = {}
 
     '''
     params:
@@ -51,10 +51,37 @@ class TrendlineDrawing:
         self.breakout_based_on = breakout_based_on
         self.start_points_list = start_points_list
 
-    def load_new_data(self, ohlc_raw, start_points_list, breakout_based_on):
-        self.raw_ohlc = ohlc_raw
-        self.breakout_based_on = breakout_based_on
-        self.start_points_list = start_points_list
+    '''
+    params:
+        series_strip -> strip from extrema till the end of the given consolidation
+        hash_key_parts -> list, elements of which form the key in a consecutive order
+                          [starting time stamp, candles forward, length of series, unit drawn on]
+        
+    In order to avoid calculating the same linear regression line on the same strip of series,
+    I decided to calculate it only once and cache the result for future use.
+
+    I am caching the trendline by constructing a special key, that should identify the line it should calculate
+
+    This will require quite a bit more memory overhead, but from my analysis it could 5x the trendline identificaiton speed
+
+    
+    '''
+    def __locate_trendline(self, series_strip, hash_key_parts):
+        # create the hash key
+        hash_key_parts[0] = int(hash_key_parts[0] / 1000) # convert ms to seconds to avoid longer hash keys
+        string_parts = [str(element) for element in hash_key_parts]
+        trendline_cache_key = ''.join(string_parts)
+        line_unit_col = hash_key_parts[-1] # always the last part 
+        # verify if this series strip has already been calculated
+        if trendline_cache_key in self.trendline_cache:
+            series_strip, reg = self.trendline_cache[trendline_cache_key]
+        else:
+            # calculate linear regression on a slice of days after the starting point
+            series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
+            # save the new 
+            self.trendline_cache[trendline_cache_key] = [series_strip, reg]
+
+        return series_strip, reg
 
 
     '''
@@ -109,14 +136,12 @@ class TrendlineDrawing:
             self.raw_ohlc = self.raw_ohlc[start:end]
 
         row_list = []
-        # base_length -> includes extrema day + breakout day
-        row_dict = {"t_start":0, "t_end":0, "price_start":0, "price_end":0, "base_length":0}
         printed=False
         # find trendlines from each local extrema
         for index, local_extreme in enumerate(self.start_points_list):
             # keep track of progress
             progress = int(round(index / len(self.start_points_list) * 100, -1))
-            if progress % 20 == 0 and not printed:
+            if progress % 50 == 0 and not printed:
                 print(f"{progress}% done")
                 printed = True
             elif progress % 20 != 0:
@@ -138,8 +163,9 @@ class TrendlineDrawing:
                 while len(series_strip) > precisesness and trendline_count < max_trendlines_drawn and len(series_strip) != prev_data_len:
                     # keeping track of prev allows to mitigate stuck up values
                     prev_data_len = len(series_strip)
-                    # calculate linear regression on a slice of days after the starting point
-                    series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
+                    hash_key_parts = [self.raw_ohlc.at[local_extreme, "t"], days_forward, prev_data_len, line_unit_col]
+                    series_strip, reg = self.__locate_trendline(series_strip, hash_key_parts)
+                    # series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
 
                     # do not check trendlines until we have cut enough of data
                     if len(series_strip) != precisesness:
