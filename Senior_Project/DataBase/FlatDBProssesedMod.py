@@ -2,13 +2,16 @@ from random import shuffle
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
-from pandas.core.frame import DataFrame
 
 from PriceProcessing.TrendlineDrawing import TrendlineDrawing
-from DataFlatDB import DataFlatDB
-from popular_paths import popular_paths
+from PriceProcessing.TrendlineProcessing import TrendlineProcessing
 
-TOTAL_PROCESSES = 5
+from DataBase.DataFlatDB import DataFlatDB
+from DataBase.popular_paths import popular_paths
+
+
+# TEMP
+TOTAL_PROCESSES = 1
 
 
 '''
@@ -22,6 +25,8 @@ processes instead.
 
 '''
 class FlatDBProssesedMod:
+
+    proc_lock = mp.Lock()
 
 
     ################################################################################
@@ -68,20 +73,33 @@ class FlatDBProssesedMod:
             hh_hq_t = stock_df["t"].loc[stock_df["hq_hh"]==True]
             # getting the index 
             hh_hq_index_list = hh_hq_t.index.tolist()
+
+            # if there are no high quality higher highs, there are no starting points for the algo
+            if len(hh_hq_index_list) == 0:
+                continue
+
             trendline_obj = TrendlineDrawing(ohlc_raw=stock_df, 
                                              start_points_list=hh_hq_index_list, 
                                              breakout_based_on="strong close")
+
+            trendline_pros_obj = TrendlineProcessing()
+
 
             preciseness = [2, 3, 4, 5, 6]
             trendlines_df = pd.DataFrame()
             for one_prec in preciseness:
                 new_trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=one_prec)
-                trendlines_df.append(new_trendline_df)
-            
-            # prep trendlines dataframe 
-            trendlines_df.sort_values(by="t", inplace=True)
-            trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
-            trend_db_obj.update_data(trend_file_name, trendlines_df, keep_old=False)
+                new_trendline_df = trendline_pros_obj.remove_ascending_trendlines(new_trendline_df)
+                trendlines_df = trendlines_df.append(new_trendline_df)
+ 
+            self.proc_lock.acquire()
+            print(f"Processed trendlines on -> {list_ticker_names[index]}")
+            self.proc_lock.release()
+            trendlines_df.sort_values(by="t_start", inplace=True)
+            print(trendlines_df.tail(10))
+
+            # trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
+            # trend_db_obj.update_data(trend_file_name, trendlines_df, keep_old=False)
 
         pass
 
@@ -109,5 +127,4 @@ class FlatDBProssesedMod:
         [x.start() for x in processes]
         [x.join() for x in processes]
 
-    pass
     

@@ -46,10 +46,10 @@ def visualize_ticker(all_ohlc_data, peaks_df=pd.DataFrame(), trendlines=pd.DataF
             'increasing' : {'line' : {'color':'purple'}},
             'decreasing' : {'line' : {'color':'purple'}},
         }
-        all_data = all_data.append(go.Candlestick(peaks_trace))
+        all_data.append(go.Candlestick(peaks_trace))
 
-    # all_data = [go.Candlestick(price_trace), go.Candlestick(peaks_trace)]
-    all_data = [go.Candlestick(price_trace)]
+    # # all_data = [go.Candlestick(price_trace), go.Candlestick(peaks_trace)]
+    # all_data = [go.Candlestick(price_trace)]
     fig = go.Figure(data = all_data)
     fig.update_yaxes(fixedrange = False)
 

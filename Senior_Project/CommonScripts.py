@@ -17,12 +17,14 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 from pandas.core.frame import DataFrame
 from DataBase.popular_paths import popular_paths
 from DataBase.FlatDBRawMod import FlatDBRawMod
+from DataBase.FlatDBProssesedMod import FlatDBProssesedMod
 from DataBase.StockScreener import ScreenerProcessor
 from DataBase.DataFlatDB import DataFlatDB
 
 # PriceProcessing module files
 from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 from PriceProcessing.TrendlineDrawing import TrendlineDrawing
+from PriceProcessing.TrendlineProcessing import TrendlineProcessing
 from PriceProcessing.Visualize import visualize_ticker
 
 # robot made
@@ -84,7 +86,7 @@ class CommonScripts:
         print(raw_df["t"].head())
         start_points_list = raw_df.loc[raw_df["h_extremes_5"]==True].index.tolist()
         trendline_obj = TrendlineDrawing(raw_df, start_points_list= start_points_list,breakout_based_on="strong close")
-        trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", precisesness=2, max_trendlines_drawn=1)
+        trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=2, max_trendlines_drawn=1)
         print(raw_df["t"].head())
 
         visualize_ticker(all_ohlc_data=raw_df, trendlines=trendline_df)
@@ -155,12 +157,13 @@ class CommonScripts:
         def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
         start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
         trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
+        trendline_pros_obj = TrendlineProcessing()
         for prec in precision:    
             trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    precisesness=prec, 
+                                                                    preciseness=prec, 
                                                                     max_trendlines_drawn=2)  
 
-            desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
+            desc_trendlines = trendline_pros_obj.remove_ascending_trendlines(trendline_df)  
 
             visualize_ticker(all_ohlc_data=raw_df, 
                                 peaks_df=def_higher_highs,
@@ -246,7 +249,7 @@ class CommonScripts:
         trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
         for prec in precision:    
             _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    precisesness=prec, 
+                                                                    preciseness=prec, 
                                                                     max_trendlines_drawn=1)  
             trendline_list.extend(trendline_obj.already_computed_trendlines)
 
@@ -299,7 +302,7 @@ class CommonScripts:
         trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
         for prec in precision:    
             _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    precisesness=prec, 
+                                                                    preciseness=prec, 
                                                                     max_trendlines_drawn=2)  
         
         dict_trendlines = trendline_obj.trendline_cache
@@ -333,5 +336,25 @@ class CommonScripts:
         print("Demonstrates how many times a single slope is calculated rendunduntly worst case scenario: ")
         frequency_most_calculated_lines = list(sorted_dict_repeat_slopes.values())
         print(frequency_most_calculated_lines[:5])
+
+
+
+    #############################################################################   
+    # update daily candles latest trendlines
+    ############################################################################# 
+    def add_latest_daily_bullish_triangles(self, include_delisted):
+
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day"}
+
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_bullish_desc_trendlines,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker[:3]) # TEMP
+
 
     

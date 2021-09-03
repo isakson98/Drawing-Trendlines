@@ -129,7 +129,7 @@ class TrendlineDrawing:
 
     '''
     # TODO compartmentalize to accomodate which section to build a trendline on
-    def identify_trendlines_LinReg(self, line_unit_col, precisesness, start=None, end=None, min_days_out=5, max_trendlines_drawn=2):
+    def identify_trendlines_LinReg(self, line_unit_col, preciseness, start=None, end=None, min_days_out=5, max_trendlines_drawn=2):
 
         # if a start date is not given, assume the entire chart for a trendline 
         if start != None:
@@ -151,15 +151,13 @@ class TrendlineDrawing:
                 prev_data_len = 100 # anything more than 42 is ok (whats greater than days_forward) to init this var
                 # draw the trendline through linear regression
                 # have to figure out when to identify a breakout from the trendline
-                while len(series_strip) > precisesness and trendline_count < max_trendlines_drawn and len(series_strip) != prev_data_len:
+                while len(series_strip) > preciseness and trendline_count < max_trendlines_drawn and len(series_strip) != prev_data_len:
                     # keeping track of prev allows to mitigate stuck up values
                     prev_data_len = len(series_strip)
                     hash_key_parts = [self.raw_ohlc.at[local_extreme, "t"], days_forward, prev_data_len, line_unit_col]
                     series_strip, reg = self.__locate_trendline(series_strip, hash_key_parts)
-                    # for comparison
-                    # series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
                     # do not check trendlines until we have cut enough of data in the series strip
-                    if len(series_strip) != precisesness:
+                    if len(series_strip) != preciseness:
                         continue
 
                     # get price at which trendline would be on the next day, the day it could breakout 
@@ -252,43 +250,3 @@ class TrendlineDrawing:
                 return True
             else:
                 return False
-    '''
-    params:
-        trendlines_df -> dataframe straight from self.identify_trendlines_LinReg()
-
-    remove trendlines where the end price of the trendline is higher than origin.
-    
-    Decided to have this function outside of the main trendline drawing function 
-    to avoid clustering too many things in it.
-
-    returns:
-        descending_df -> same columns 
-    '''
-    def remove_ascending_trendlines(self, trendlines_df):
-
-        if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
-            return trendlines_df
-        
-        descending_df = trendlines_df[(trendlines_df["price_start"] > trendlines_df["price_end"] )]
-
-        return descending_df
-    
-    '''
-    params:
-        trendlines_df -> dataframe straight from self.identify_trendlines_LinReg()
-
-    remove trendlines where the end price of the trendline is higher than origin
-
-    returns:
-        ascending_df -> same columns 
-    '''
-    def remove_descending_trendlines(self, trendlines_df):
-
-        if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
-            return trendlines_df
-
-        ascending_df = trendlines_df[(trendlines_df["price_start"] < trendlines_df["price_end"] )]
-         
-        return ascending_df

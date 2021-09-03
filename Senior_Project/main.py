@@ -26,7 +26,7 @@ if __name__ == '__main__':
     ###################################################################
     comm_obj = CommonScripts()
     # comm_obj.measure_trendline_cache_efficacy("FCX")
-    comm_obj.draw_descending_trendline_on_bullish_stock("BA")
+    comm_obj.add_latest_daily_bullish_triangles(include_delisted=False)
     ###################################################################
     end = time.time()
     print(str(end-start) + " seconds")
