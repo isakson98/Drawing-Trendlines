@@ -68,38 +68,6 @@ class TrendlineDrawing:
     '''
     def __locate_trendline(self, series_strip, hash_key_parts):
         # create the hash key
-        # TODO: configure hash to fit minute and hourly timeframes, too (can't now due to timestamp shrinkage)
-        candles_forward = hash_key_parts[1]
-        hash_key_parts[0] = int(hash_key_parts[0] / 100000) # removing 5 zeros from ms timestamp (dealing with daily data ok)
-        candles_forward_choices = [str(candles_count) for candles_count in range(candles_forward-1, candles_forward+1)]
-        string_parts = [str(element) for element in hash_key_parts]
-
-        # creating a choice of hash keys that could satisfy the request
-        trendline_cache_key_choices = []
-        for candle_fwd_option in candles_forward_choices:
-            string_parts[1] = candle_fwd_option
-            trendline_cache_key = ''.join(string_parts)
-            trendline_cache_key_choices.append(trendline_cache_key)
-        
-        new_series_strip = pd.Series()
-        # verify if this series strip has already been calculated
-        for trendline_cache_key in trendline_cache_key_choices:
-            if trendline_cache_key in self.trendline_cache:
-                new_series_strip, reg = self.trendline_cache[trendline_cache_key]
-                break
-        # if cache key doesn't exist
-        if len(new_series_strip) == 0:
-            # calculate linear regression on a slice of days after the starting point
-            line_unit_col = hash_key_parts[-1] # always the last part, use it regression calc
-            new_series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
-            # save the new 
-            self.trendline_cache[trendline_cache_key] = [new_series_strip, reg]
-
-        return new_series_strip, reg
-        ####################################################################
-        # ORIGINAL
-        ####################################################################
-        # create the hash key
         hash_key_parts[0] = int(hash_key_parts[0] / 100000) # convert ms to seconds to avoid longer hash keys
         string_parts = [str(element) for element in hash_key_parts]
         trendline_cache_key = ''.join(string_parts)
