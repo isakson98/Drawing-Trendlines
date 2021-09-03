@@ -158,7 +158,7 @@ class CommonScripts:
         for prec in precision:    
             trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
                                                                     precisesness=prec, 
-                                                                    max_trendlines_drawn=1)  
+                                                                    max_trendlines_drawn=2)  
 
             desc_trendlines = trendline_obj.remove_ascending_trendlines(trendline_df)  
 
@@ -280,8 +280,15 @@ class CommonScripts:
         print(f"Total number of times trendlines are currently calculated {sum_trendline_calculations}")
 
 
-
-    def measure_trendline_cache_efficacy(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
+    '''
+    
+    Using diagnostics in this function, I determined that the reason I have repeating slope 
+    values in the trendline cache is because there can be the same trendline plotted with 
+    different base length from the extrema point. With this in mind, I can adjust how I seek
+    my cache by allowing a window of +- 3 candles
+    
+    '''
+    def measure_trendline_cache_efficacy(self, STOCK_TO_VISUALIZE, debug, precision=[3, 4, 5, 6]):
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
@@ -305,13 +312,20 @@ class CommonScripts:
         for key in dict_trendlines:
             series_strip, reg = dict_trendlines[key]
             # initialize with 0 count as the first element and hash key as the second value
-            duplicate_reg[reg[1]] = duplicate_reg.get(reg[1], [0, key])
+            duplicate_reg[reg[1]] = duplicate_reg.get(reg[1], [0, key, series_strip])
             # add to the frequency
             duplicate_reg[reg[1]][0] = duplicate_reg[reg[1]][0] + 1
-            if duplicate_reg[reg[1]][0] > 1:
+            # TODO : figure out how to further shrink trendline duplication
+            # my observations so far: there are duplicated trendlines, whose days_forward varies
+            if duplicate_reg[reg[1]][0] > 1 and debug:
                 print("Duplicate values")
-                print(duplicate_reg[reg[1]][1])
+                print("first of category lines refers to the same entity")
+                first_dup_key = duplicate_reg[reg[1]][1]
+                print(first_dup_key)
                 print(key)
+                print(first_dup_key[8:])
+                print(key[8:])
+                print(duplicate_reg[reg[1]][2])
                 print(series_strip)
                 print()
 

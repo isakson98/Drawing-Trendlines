@@ -62,20 +62,52 @@ class TrendlineDrawing:
 
     I am caching the trendline by constructing a special key, that should identify the line it should calculate
 
-    This will require quite a bit more memory overhead, but from my analysis it could 5x the trendline identificaiton speed
+    This will require quite a bit more memory overhead, but from my analysis it could 2x the trendline identificaiton speed
 
     
     '''
     def __locate_trendline(self, series_strip, hash_key_parts):
         # create the hash key
-        hash_key_parts[0] = int(hash_key_parts[0] / 1000) # convert ms to seconds to avoid longer hash keys
+        # TODO: configure hash to fit minute and hourly timeframes, too (can't now due to timestamp shrinkage)
+        candles_forward = hash_key_parts[1]
+        hash_key_parts[0] = int(hash_key_parts[0] / 100000) # removing 5 zeros from ms timestamp (dealing with daily data ok)
+        candles_forward_choices = [str(candles_count) for candles_count in range(candles_forward-1, candles_forward+1)]
+        string_parts = [str(element) for element in hash_key_parts]
+
+        # creating a choice of hash keys that could satisfy the request
+        trendline_cache_key_choices = []
+        for candle_fwd_option in candles_forward_choices:
+            string_parts[1] = candle_fwd_option
+            trendline_cache_key = ''.join(string_parts)
+            trendline_cache_key_choices.append(trendline_cache_key)
+        
+        new_series_strip = pd.Series()
+        # verify if this series strip has already been calculated
+        for trendline_cache_key in trendline_cache_key_choices:
+            if trendline_cache_key in self.trendline_cache:
+                new_series_strip, reg = self.trendline_cache[trendline_cache_key]
+                break
+        # if cache key doesn't exist
+        if len(new_series_strip) == 0:
+            # calculate linear regression on a slice of days after the starting point
+            line_unit_col = hash_key_parts[-1] # always the last part, use it regression calc
+            new_series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
+            # save the new 
+            self.trendline_cache[trendline_cache_key] = [new_series_strip, reg]
+
+        return new_series_strip, reg
+        ####################################################################
+        # ORIGINAL
+        ####################################################################
+        # create the hash key
+        hash_key_parts[0] = int(hash_key_parts[0] / 100000) # convert ms to seconds to avoid longer hash keys
         string_parts = [str(element) for element in hash_key_parts]
         trendline_cache_key = ''.join(string_parts)
-        line_unit_col = hash_key_parts[-1] # always the last part 
         # verify if this series strip has already been calculated
         if trendline_cache_key in self.trendline_cache:
             series_strip, reg = self.trendline_cache[trendline_cache_key]
         else:
+            line_unit_col = hash_key_parts[-1] # always the last part 
             # calculate linear regression on a slice of days after the starting point
             series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
             # save the new 
@@ -136,17 +168,8 @@ class TrendlineDrawing:
             self.raw_ohlc = self.raw_ohlc[start:end]
 
         row_list = []
-        printed=False
         # find trendlines from each local extrema
-        for index, local_extreme in enumerate(self.start_points_list):
-            # keep track of progress
-            progress = int(round(index / len(self.start_points_list) * 100, -1))
-            if progress % 50 == 0 and not printed:
-                print(f"{progress}% done")
-                printed = True
-            elif progress % 20 != 0:
-                printed = False
-
+        for local_extreme in self.start_points_list:
             # initialize values
             trendline_count = 0
             days_forward = min_days_out
@@ -165,9 +188,9 @@ class TrendlineDrawing:
                     prev_data_len = len(series_strip)
                     hash_key_parts = [self.raw_ohlc.at[local_extreme, "t"], days_forward, prev_data_len, line_unit_col]
                     series_strip, reg = self.__locate_trendline(series_strip, hash_key_parts)
+                    # for comparison
                     # series_strip, reg = self.__calculate_lin_reg(series_strip, line_unit_col)
-
-                    # do not check trendlines until we have cut enough of data
+                    # do not check trendlines until we have cut enough of data in the series strip
                     if len(series_strip) != precisesness:
                         continue
 
@@ -276,7 +299,7 @@ class TrendlineDrawing:
     def remove_ascending_trendlines(self, trendlines_df):
 
         if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is "price_start" column in trendlines_df''')
+            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
             return trendlines_df
         
         descending_df = trendlines_df[(trendlines_df["price_start"] > trendlines_df["price_end"] )]
@@ -295,7 +318,7 @@ class TrendlineDrawing:
     def remove_descending_trendlines(self, trendlines_df):
 
         if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is "price_start" column in trendlines_df''')
+            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
             return trendlines_df
 
         ascending_df = trendlines_df[(trendlines_df["price_start"] < trendlines_df["price_end"] )]
