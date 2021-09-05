@@ -10,7 +10,7 @@ from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
 
-# TEMP
+TOTAL_PROCESSES = mp.cpu_count() - 2
 TOTAL_PROCESSES = 1
 
 
@@ -26,7 +26,8 @@ processes instead.
 '''
 class FlatDBProssesedMod:
 
-    proc_lock = mp.Lock()
+    process_lock = mp.Lock()
+    list_incrementer = 0
 
 
     ################################################################################
@@ -42,15 +43,15 @@ class FlatDBProssesedMod:
     def add_bullish_desc_trendlines(self, list_ticker_names, **kwargs):
 
         multiple, timespan = kwargs['multiple'], kwargs['timespan']
-        # verify that the directories exist 
+        # init db objects and verify that the directories exist 
         try:
             dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']
             raw_data_obj = DataFlatDB(dir_list)
             needed_suf = raw_data_obj.suffix
 
-            trend_dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
-            trend_db_obj = DataFlatDB(trend_dir_list)
+            dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
+            trend_db_obj = DataFlatDB(dir_list)
         except:
             error_statement = f"Wrong directory parameters {dir_params}" 
             raise ValueError(error_statement)
@@ -58,50 +59,62 @@ class FlatDBProssesedMod:
         # create a list of files names 
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # read each stock in a loop
+        # while self.list_incrementer < len(list_raw_ticker_file_names):
         for index, file_name, in enumerate(list_raw_ticker_file_names):
-            if index % 100 == 0 and index != 0:
-                self.proc_lock.acquire()
+            # self.process_lock.acquire()
+            # self.list_incrementer += 1
+            # self.process_lock.release()
+            # file_name = 
+            if self.list_incrementer % 100 == 0 and self.list_incrementer != 0:
+                self.process_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
-                self.proc_lock.release()
+                self.process_lock.release()
                 
             # retrieve raw price data
             stock_df = raw_data_obj.retrieve_data(file_name)
-            if len(stock_df) == 0:
-                continue
+            if len(stock_df) == 0: continue
             
-            # identify where to start updating from
+            # determine the starting index
+            trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
+            trend_existing_df = pd.DataFrame()
+            trend_df_exists = trend_db_obj.verify_path_existence(trend_file_name)
+            if trend_df_exists: 
+                trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
+                last_timestamp_performed_on = trend_existing_df["t_start"].iloc[-1]
+                stock_df = stock_df[stock_df["t"] >= last_timestamp_performed_on]
+            # get list of indices that match high quality higher highs
             hh_hq_t = stock_df["t"].loc[stock_df["hq_hh"]==True]
-            # getting the index 
             hh_hq_index_list = hh_hq_t.index.tolist()
-
+                
             # if there are no high quality higher highs, there are no starting points for the algo
-            if len(hh_hq_index_list) == 0:
-                continue
+            if len(hh_hq_index_list) == 0: continue
 
             trendline_obj = TrendlineDrawing(ohlc_raw=stock_df, 
                                              start_points_list=hh_hq_index_list, 
                                              breakout_based_on="strong close")
 
             trendline_pros_obj = TrendlineProcessing()
-
-
-            preciseness = [2, 3, 4, 5, 6]
-            trendlines_df = pd.DataFrame()
+            preciseness = [2, 3, 4, 5, 6, 8]
+            # collecting groups of different types of descending trendlines
             for one_prec in preciseness:
                 new_trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=one_prec)
-                new_trendline_df = trendline_pros_obj.remove_ascending_trendlines(new_trendline_df)
-                trendlines_df = trendlines_df.append(new_trendline_df)
- 
-            self.proc_lock.acquire()
+                trend_existing_df = trend_existing_df.append(new_trendline_df)
+
+            # no trendlines found
+            if len(trend_existing_df) == 0: continue
+
+            trend_existing_df = trendline_pros_obj.remove_ascending_trendlines(trend_existing_df)
+            trend_existing_df = trendline_pros_obj.remove_duplicate_trendlines(trend_existing_df)
+            trend_existing_df.sort_values(by="t_start", inplace=True)
+            if trend_df_exists:
+                trend_existing_df = trend_existing_df.append(trend_existing_df)
+                trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            else:
+                trend_db_obj.add_data(list_ticker_names[index], trend_existing_df)
+
+            self.process_lock.acquire()
             print(f"Processed trendlines on -> {list_ticker_names[index]}")
-            self.proc_lock.release()
-            trendlines_df.sort_values(by="t_start", inplace=True)
-            print(trendlines_df.tail(10))
-
-            # trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
-            # trend_db_obj.update_data(trend_file_name, trendlines_df, keep_old=False)
-
-        pass
+            self.process_lock.release()
 
 
     '''

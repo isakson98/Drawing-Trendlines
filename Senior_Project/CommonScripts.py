@@ -77,19 +77,6 @@ class CommonScripts:
         list_cur_tickers = current_df["symbol"].tolist()
         return list_cur_tickers
 
-    #############################################################################
-    # RETRIEVING RAW PRICE AND EXTREMA AND PLOTTING THEM 
-    #############################################################################
-    def retrieve_RawPrice_and_Extrema_and_plot_them(self, STOCK_TO_VISUALIZE):
-        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-        print(raw_df["t"].head())
-        start_points_list = raw_df.loc[raw_df["h_extremes_5"]==True].index.tolist()
-        trendline_obj = TrendlineDrawing(raw_df, start_points_list= start_points_list,breakout_based_on="strong close")
-        trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=2, max_trendlines_drawn=1)
-        print(raw_df["t"].head())
-
-        visualize_ticker(all_ohlc_data=raw_df, trendlines=trendline_df)
 
     #############################################################################
     # DOWNLOADING DATA FOR DELISTED TICKERS
@@ -146,6 +133,16 @@ class CommonScripts:
 
         return higher_highs
 
+    #############################################################################
+    # PLOTTING STOCK ONLY
+    #############################################################################
+    def visualize_stock(self, STOCK_TO_VISUALIZE, multiple = 1, timespan = "day"):
+        timeframe = str(multiple) + " " + timespan
+        raw_obj = DataFlatDB(popular_paths[f"historical {timeframe}"]["dir_list"])
+        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
+
+        visualize_ticker(all_ohlc_data=raw_df)
+
     #############################################################################   
     # update daily candles raw volume
     ############################################################################# 
@@ -154,21 +151,35 @@ class CommonScripts:
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
         raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
 
-        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
-        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
-        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
-        trendline_pros_obj = TrendlineProcessing()
-        for prec in precision:    
-            trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    preciseness=prec, 
-                                                                    max_trendlines_drawn=2)  
+        trendline_obj = DataFlatDB(popular_paths["bull triangles 1 day"]["dir_list"])
+        trendline_df = trendline_obj.retrieve_data(STOCK_TO_VISUALIZE+trendline_obj.suffix)
 
-            desc_trendlines = trendline_pros_obj.remove_ascending_trendlines(trendline_df)  
+        if len(trendline_df) == 0:
 
-            visualize_ticker(all_ohlc_data=raw_df, 
-                                peaks_df=def_higher_highs,
-                                distance=5,
-                                trendlines=desc_trendlines)
+            def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
+            start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
+            trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
+            trendline_pros_obj = TrendlineProcessing()
+            for prec in precision:    
+                trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
+                                                                        preciseness=prec, 
+                                                                        max_trendlines_drawn=2)  
+
+                desc_trendlines = trendline_pros_obj.remove_ascending_trendlines(trendline_df)  
+
+                visualize_ticker(all_ohlc_data=raw_df, 
+                                    peaks_df=def_higher_highs,
+                                    distance=5,
+                                    trendlines=desc_trendlines)
+        
+        else:
+            split_by_precision_df = trendline_df.groupby("preciseness")
+
+            for preciseness in split_by_precision_df.groups:
+                preciseness_df = split_by_precision_df.get_group(preciseness)
+                visualize_ticker(all_ohlc_data=raw_df,
+                                 trendlines=preciseness_df)
+
 
         
 
@@ -228,6 +239,29 @@ class CommonScripts:
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker)
 
+
+    #############################################################################   
+    # update daily candles latest trendlines
+    ############################################################################# 
+    def add_latest_daily_bullish_triangles(self, include_delisted):
+
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day"}
+
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_bullish_desc_trendlines,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker) 
+
+    '''
+    
+    DIAGNOSTICS BELOW
+    
+    '''
     
     #############################################################################   
     # DIAGNOSTICS: measure frequency of repeating trendlines
@@ -339,22 +373,7 @@ class CommonScripts:
 
 
 
-    #############################################################################   
-    # update daily candles latest trendlines
-    ############################################################################# 
-    def add_latest_daily_bullish_triangles(self, include_delisted):
-
-        # get all tickers 
-        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
-
-        # default values are the ones that have been computed, and I know exist
-        partial_fun_params = {"multiple" : 1,
-                              "timespan" : "day"}
-
-        db_changes_obj = FlatDBProssesedMod()
-        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_bullish_desc_trendlines,
-                                                partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_ticker[:3]) # TEMP
+    
 
 
     

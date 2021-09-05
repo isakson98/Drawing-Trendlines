@@ -109,8 +109,6 @@ class DataFlatDB:
     '''
     def __get_files_creation_date(self, path : str) -> list:
 
-        timestamp_creation = os.stat(path).st_ctime
-        creation_date = dt.datetime.fromtimestamp(timestamp_creation)
         today_date = dt.date.today()
         string_v = today_date.strftime("%d-%b-%Y")
         return [today_date, string_v]
@@ -131,6 +129,10 @@ class DataFlatDB:
 
         return string_path
 
+    ##################
+    # Public Methods #
+    ##################
+
     '''
     params:
         string_path -> the path given to verify
@@ -149,10 +151,6 @@ class DataFlatDB:
                 return True
             return False
         return True
-
-    ##################
-    # Public Methods #
-    ##################
 
     '''
     params:
@@ -191,6 +189,7 @@ class DataFlatDB:
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
         exists = self.verify_path_existence(full_path)
         if not exists:
+            print(f"{full_file_name} could not be updated because it doesn't exist")
             return False
 
         if keep_old:
@@ -200,6 +199,24 @@ class DataFlatDB:
         content_to_add.to_csv(full_path, index=False)
 
         return True
+
+    '''
+    params:
+        full_file_name -> root name of file you want data of + suffix will be appended
+
+    if no files is given, you return everything containing in that folder
+
+    returns:
+        dict -> path ->full path to file, data
+    '''
+    def retrieve_data(self, full_file_name) -> pd.DataFrame():
+        full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
+        df = pd.DataFrame()
+        try : 
+            df = pd.read_csv(full_path)
+        except:
+            print(f"{full_file_name} could not be read")
+        return df
         
     '''
 
@@ -234,23 +251,6 @@ class DataFlatDB:
         all_ticker_names = list(map(self.__retrieve_ticker_name_helper, all_dir_files))
         return all_ticker_names
 
-    '''
-    params:
-        full_file_name -> root name of file you want data of + suffix will be appended
-
-    if no files is given, you return everything containing in that folder
-
-    returns:
-        dict -> path ->full path to file, data
-    '''
-    def retrieve_data(self, full_file_name) -> pd.DataFrame():
-        full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
-        df = pd.DataFrame()
-        try : 
-            df = pd.read_csv(full_path)
-        except:
-            print(f"{full_file_name} could not be read")
-        return df
 
     '''
     params:

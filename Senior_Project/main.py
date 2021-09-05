@@ -25,8 +25,8 @@ if __name__ == '__main__':
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
     comm_obj = CommonScripts()
-    # comm_obj.measure_trendline_cache_efficacy("FCX")
-    comm_obj.add_latest_daily_bullish_triangles(include_delisted=False)
+    comm_obj.add_latest_daily_bullish_triangles(include_delisted=True)
+    # comm_obj.draw_descending_trendline_on_bullish_stock("FOXA")
     ###################################################################
     end = time.time()
     print(str(end-start) + " seconds")

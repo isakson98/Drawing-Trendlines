@@ -26,7 +26,6 @@ class TrendlineDrawing:
 
     raw_ohlc = pd.DataFrame()
     breakout_based_on = None
-    # TEMP
     trendline_cache = {}
 
     '''
@@ -143,7 +142,7 @@ class TrendlineDrawing:
             days_forward = min_days_out
             end_index = None 
             crossed_trendline = False
-            # iterate each day from the same local extrema until the end of data or length is too big
+            # iterate from the same local extrema each day until the end of data or length is too big
             while local_extreme + days_forward < self.raw_ohlc.index[-1] - 1 and days_forward <= 42 and trendline_count < max_trendlines_drawn: # 42 is 2 month period -> max for my preference
                 end_index = local_extreme + days_forward
                 # retrieving only piece of series, which will be calculated on
@@ -162,7 +161,7 @@ class TrendlineDrawing:
 
                     # get price at which trendline would be on the next day, the day it could breakout 
                     index_of_breakout_day = end_index + 1
-                    trendline_price_last_day = reg[0] * (index_of_breakout_day) + reg[1] 
+                    trendline_price_last_day = round(reg[0] * (index_of_breakout_day) + reg[1], 2)
                     it_really_did = self.breakout_happend(trendline_price_last_day, 
                                                           local_extreme, 
                                                           index_of_breakout_day, 
@@ -176,9 +175,10 @@ class TrendlineDrawing:
                                     "t_end":self.raw_ohlc.at[index_of_breakout_day, "t"], 
                                     "price_start":self.raw_ohlc.loc[local_extreme,line_unit_col], 
                                     "price_end":trendline_price_last_day,
-                                    "base_length" : days_forward + 1}
+                                    "slope" : reg[0], "intercept" : reg[1], "rvalue" : reg[2], "pvalue" : reg[3],
+                                    "base_length" : days_forward + 1,
+                                    "preciseness" : preciseness}
                         row_list.append(row_dict)
-                        # trendline upkeeping
                         trendline_count += 1
                         crossed_trendline = True
                     # BOTH MUST BE PRESENT TO REACTIVATE TRENDLINE COUNTING
