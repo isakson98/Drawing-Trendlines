@@ -10,9 +10,8 @@ from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
 
-TOTAL_PROCESSES = mp.cpu_count() - 2
-TOTAL_PROCESSES = 1
-
+TOTAL_PROCESSES = mp.cpu_count() - 1
+# TOTAL_PROCESSES = 1
 
 '''
 
@@ -40,7 +39,7 @@ class FlatDBProssesedMod:
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
     '''
-    def add_bullish_desc_trendlines(self, list_ticker_names, **kwargs):
+    def add_bullish_desc_trendlines(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
         multiple, timespan = kwargs['multiple'], kwargs['timespan']
         # init db objects and verify that the directories exist 
@@ -58,18 +57,16 @@ class FlatDBProssesedMod:
 
         # create a list of files names 
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
-        # read each stock in a loop
-        # while self.list_incrementer < len(list_raw_ticker_file_names):
-        for index, file_name, in enumerate(list_raw_ticker_file_names):
-            # self.process_lock.acquire()
-            # self.list_incrementer += 1
-            # self.process_lock.release()
-            # file_name = 
-            if self.list_incrementer % 100 == 0 and self.list_incrementer != 0:
+        # exit when the shared memory variable reaches the end
+        while list_increment.value != len(list_raw_ticker_file_names) - 1:
+            with list_increment.get_lock():
+                list_increment.value += 1
+            index = list_increment.value
+            file_name = list_raw_ticker_file_names[index]
+            if index % 100 == 0 and index != 0:
                 self.process_lock.acquire()
                 print(f"Process identified extrema on {index} tickers")
                 self.process_lock.release()
-                
             # retrieve raw price data
             stock_df = raw_data_obj.retrieve_data(file_name)
             if len(stock_df) == 0: continue
@@ -80,7 +77,13 @@ class FlatDBProssesedMod:
             trend_df_exists = trend_db_obj.verify_path_existence(trend_file_name)
             if trend_df_exists: 
                 trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
-                last_timestamp_performed_on = trend_existing_df["t_start"].iloc[-1]
+                try:
+                    last_timestamp_performed_on = trend_existing_df["t_start"].iloc[-1]
+                except:
+                    self.process_lock.acquire()
+                    print(f"OUT of bounds error in: {file_name}") # TEMP try except statement
+                    self.process_lock.release()
+                    continue
                 stock_df = stock_df[stock_df["t"] >= last_timestamp_performed_on]
             # get list of indices that match high quality higher highs
             hh_hq_t = stock_df["t"].loc[stock_df["hq_hh"]==True]
@@ -92,22 +95,25 @@ class FlatDBProssesedMod:
             trendline_obj = TrendlineDrawing(ohlc_raw=stock_df, 
                                              start_points_list=hh_hq_index_list, 
                                              breakout_based_on="strong close")
-
             trendline_pros_obj = TrendlineProcessing()
             preciseness = [2, 3, 4, 5, 6, 8]
             # collecting groups of different types of descending trendlines
+            existing_df_len = len(trend_existing_df)
+            new_trendline_df = pd.DataFrame()
             for one_prec in preciseness:
-                new_trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=one_prec)
-                trend_existing_df = trend_existing_df.append(new_trendline_df)
+                one_prec_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=one_prec)
+                new_trendline_df = new_trendline_df.append(one_prec_df)
+            trendline_obj.clear_cache()
 
-            # no trendlines found
-            if len(trend_existing_df) == 0: continue
-
-            trend_existing_df = trendline_pros_obj.remove_ascending_trendlines(trend_existing_df)
+            new_trendline_df = trendline_pros_obj.remove_ascending_trendlines(new_trendline_df)
+            trend_existing_df = trend_existing_df.append(new_trendline_df)
             trend_existing_df = trendline_pros_obj.remove_duplicate_trendlines(trend_existing_df)
+            # no new trendlines to add
+            if existing_df_len == len(trend_existing_df) or len(trend_existing_df) == 0: continue
+
             trend_existing_df.sort_values(by="t_start", inplace=True)
+
             if trend_df_exists:
-                trend_existing_df = trend_existing_df.append(trend_existing_df)
                 trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
             else:
                 trend_db_obj.add_data(list_ticker_names[index], trend_existing_df)
@@ -129,12 +135,11 @@ class FlatDBProssesedMod:
 
     '''
     def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_ticker_names:list):
-        # shuffle to distribute file sizes evenly
-        shuffle(list_ticker_names)
-        ticker_pieces = np.array_split(list_ticker_names, TOTAL_PROCESSES)
+
+        list_increment = mp.Value('i', -1) # I increment by 1 at the start of the loop in process function
         processes = []
         for i in range(TOTAL_PROCESSES):
-            p = mp.Process(target=proc_function, args=(ticker_pieces[i],), kwargs=partial_fun_params)
+            p = mp.Process(target=proc_function, args=(list_ticker_names, list_increment), kwargs=partial_fun_params)
             p.daemon = True # kills this child process if the main program exits
             processes.append(p)
         [x.start() for x in processes]

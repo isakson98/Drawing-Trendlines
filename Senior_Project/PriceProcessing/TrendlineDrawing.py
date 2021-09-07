@@ -250,3 +250,11 @@ class TrendlineDrawing:
                 return True
             else:
                 return False
+
+    '''
+    
+    To avoid keys hitting the content 
+
+    '''
+    def clear_cache(self):
+        self.trendline_cache.clear()

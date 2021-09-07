@@ -154,7 +154,7 @@ class CommonScripts:
         trendline_obj = DataFlatDB(popular_paths["bull triangles 1 day"]["dir_list"])
         trendline_df = trendline_obj.retrieve_data(STOCK_TO_VISUALIZE+trendline_obj.suffix)
 
-        if len(trendline_df) == 0:
+        if len(trendline_df) == 0 :
 
             def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
             start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
@@ -255,7 +255,7 @@ class CommonScripts:
         db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_bullish_desc_trendlines,
                                                 partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_ticker) 
+                                                list_ticker_names=daily_raw_ticker)
 
     '''
     

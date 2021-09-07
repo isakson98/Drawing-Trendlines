@@ -24,7 +24,7 @@ class TrendlineProcessing:
     def remove_ascending_trendlines(self, trendlines_df):
 
         if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
+            # print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
             return trendlines_df
         
         return trendlines_df[(trendlines_df["price_start"] > trendlines_df["price_end"] )]
@@ -42,7 +42,7 @@ class TrendlineProcessing:
     def remove_descending_trendlines(self, trendlines_df):
 
         if "price_start" not in trendlines_df.columns:
-            print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
+            # print('''Cannot remove trendlines. There is no "price_start" column in trendlines_df''')
             return trendlines_df
 
         return trendlines_df[(trendlines_df["price_start"] < trendlines_df["price_end"] )]
@@ -55,5 +55,5 @@ class TrendlineProcessing:
     '''
     def remove_duplicate_trendlines(self, trendlines_df):
 
-        return trendlines_df[~trendlines_df.duplicated()]
+        return trendlines_df[~trendlines_df.duplicated(["t_start", "t_end", "price_end", "preciseness"])]
 

@@ -25,8 +25,7 @@ if __name__ == '__main__':
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
     comm_obj = CommonScripts()
-    comm_obj.add_latest_daily_bullish_triangles(include_delisted=True)
-    # comm_obj.draw_descending_trendline_on_bullish_stock("FOXA")
+    comm_obj.draw_descending_trendline_on_bullish_stock("AA")
     ###################################################################
     end = time.time()
     print(str(end-start) + " seconds")
