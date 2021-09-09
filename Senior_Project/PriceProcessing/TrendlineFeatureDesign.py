@@ -47,6 +47,9 @@ class TrendlineFeatureDesign:
     Many highs and lows have many trendlines coming out of them, but all of them essentially 
     will have the same output for this function if they share the same starting point.
 
+    That's why I only calculate this feature on unique timestamps and then build up the original frequency count
+    by merging 
+
     returns:
         series that match endpoint_series length, where each row corresponds to the same trendline in endpoint_series
 
@@ -63,15 +66,14 @@ class TrendlineFeatureDesign:
         # condense condensed df to include only specified extrema and timestamp columns
         needed_raw_df = starting_extrema_df[[extrema_col_name, "t"]]
 
-        # get only unique values 
+        # get only unique end point values 
         unique_endpoints = pd.Series(endpoint_series.unique())
         unique_df = pd.DataFrame({"unique_endpoints":unique_endpoints})
-        # get series 
         unique_df["pole_length"] = unique_endpoints.apply(self.__helper_len_from_local_extrema, args=(raw_price,
-                                                                                          needed_raw_df, 
-                                                                                          n_prev))
-                                                                                          
-        # match the unique values to the same length and frequency of endpoints as the input
+                                                                                                      needed_raw_df, 
+                                                                                                      n_prev))
+
+        # match the unique values to the same column length and frequency of endpoints as the input
         match_length_df = pd.DataFrame({"endpoint" : endpoint_series})
         match_length_df = pd.merge(left=match_length_df, 
                                    right=unique_df,

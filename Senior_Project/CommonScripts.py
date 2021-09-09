@@ -266,26 +266,20 @@ class CommonScripts:
     #############################################################################   
     # update daily candles latest trendlines
     ############################################################################# 
-    def add_latest_length_of_pole(self, STOCK_TO_VISUALIZE, include_delisted):
-        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
+    def add_latest_length_of_pole(self, include_delisted):
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
 
-        trend_obj = DataFlatDB(popular_paths["bull triangles 1 day"]["dir_list"])
-        trend_df = trend_obj.retrieve_data(STOCK_TO_VISUALIZE+trend_obj.suffix)
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "n_prev" : 1}
 
-        trendline_feature_obj = TrendlineFeatureDesign()
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pole_length,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker)                                                                
 
-        trend_df["pole_length"] = trendline_feature_obj.get_length_from_prev_local_extrema(
-                                                                 endpoint_series=trend_df["t_start"], 
-                                                                 raw_price=raw_df,
-                                                                 n_prev=1,
-                                                                 type_start_extrema="l",
-                                                                 distance=5
-                                                                 )
-
-        print(trend_df.tail())                                                                 
-
-        # visualize_ticker(raw_df, trend_df["len_from_start_to_peak"], )
 
     '''
     
