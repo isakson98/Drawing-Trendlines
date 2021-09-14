@@ -12,8 +12,6 @@ from DataBase.popular_paths import popular_paths
 
 
 TOTAL_PROCESSES = mp.cpu_count() - 1
-# TEMP
-TOTAL_PROCESSES = 1
 
 '''
 
@@ -176,7 +174,7 @@ class FlatDBProssesedMod:
                                                                     distance=5
                                                                     )
 
-            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            # trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
 

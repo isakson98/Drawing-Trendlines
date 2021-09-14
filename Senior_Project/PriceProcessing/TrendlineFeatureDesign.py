@@ -20,12 +20,16 @@ class TrendlineFeatureDesign:
 
     gets length from one local extrema to the other, including both extremas
 
+    NOTE: in some rare cases, my start_extrema_index variable becomes None, so i will assign a negative value
+    and then remove these rows during data processing.
+
     '''
     def __helper_len_from_local_extrema(self, x, needed_raw_df, starting_extrema_df, n_prev):
         # isolate the local start extrema index
         cut_off_timestamp_df = starting_extrema_df[starting_extrema_df["t"] < x]
         cut_off_extrema_df = cut_off_timestamp_df.tail(n_prev)
         start_extrema_index = cut_off_extrema_df.last_valid_index()
+        if start_extrema_index == None: start_extrema_index = -10000 
         # get the end extrema's index
         end_of_pole_index_list = needed_raw_df.index[needed_raw_df["t"] == x].tolist()
         end_extrena_index = end_of_pole_index_list[0]
