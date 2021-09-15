@@ -58,7 +58,7 @@ class TrendlineFeatureDesign:
         series that match endpoint_series length, where each row corresponds to the same trendline in endpoint_series
 
     '''
-    def get_length_from_prev_local_extrema(self, endpoint_series : pd.Series, raw_price, n_prev, type_start_extrema, distance):
+    def get_pole_length(self, endpoint_series : pd.Series, raw_price, n_prev, type_start_extrema, distance):
         
         extrema_col_name = "_".join([type_start_extrema, "extremes", str(distance)])
         if extrema_col_name not in raw_price:
@@ -86,6 +86,17 @@ class TrendlineFeatureDesign:
                                    how="left")
         
         return match_length_df["pole_length"]
+
+    '''
+    params:
+
+    calculates the percentage of the rise since the last local low until price peaks
+
+    returns:
+    
+    '''
+    def get_pole_height():
+        pass
         
 
 
