@@ -166,7 +166,7 @@ class FlatDBProssesedMod:
             trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
 
             trendline_feature_obj = TrendlineFeatureDesign()
-            trend_existing_df[f"pole_length_{n_prev}"] = trendline_feature_obj.get_length_from_prev_local_extrema(
+            trend_existing_df[f"pole_length_{n_prev}"] = trendline_feature_obj.get_pole_length(
                                                                     endpoint_series=trend_existing_df["t_start"], 
                                                                     raw_price=raw_df,
                                                                     n_prev=n_prev,
@@ -174,7 +174,7 @@ class FlatDBProssesedMod:
                                                                     distance=5
                                                                     )
 
-            # trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
 

@@ -1,5 +1,6 @@
 
 import pandas as pd
+import multiprocessing as mp
 
 '''
 
@@ -8,6 +9,7 @@ the trendlines AND the respective raw price where these trendlines were obtained
 
 '''
 class TrendlineFeatureDesign:
+    print_lock = mp.Lock()
     '''
     params:
         x -> current end point timestamp
@@ -29,7 +31,11 @@ class TrendlineFeatureDesign:
         cut_off_timestamp_df = starting_extrema_df[starting_extrema_df["t"] < x]
         cut_off_extrema_df = cut_off_timestamp_df.tail(n_prev)
         start_extrema_index = cut_off_extrema_df.last_valid_index()
-        if start_extrema_index == None: start_extrema_index = -10000 
+        if start_extrema_index == None: 
+            start_extrema_index = -10000
+            self.print_lock.acquire()
+            print("negative pole length")
+            self.print_lock.release()
         # get the end extrema's index
         end_of_pole_index_list = needed_raw_df.index[needed_raw_df["t"] == x].tolist()
         end_extrena_index = end_of_pole_index_list[0]
@@ -90,12 +96,24 @@ class TrendlineFeatureDesign:
     '''
     params:
 
+    uses two columns the length of the consolidation (the flag) and 
+    the length of the pole (from local low to trendline's peak)
+
+    returns:
+
+    '''
+    def get_pole_to_flag_height_ratio(self):
+        pass
+
+    '''
+    params:
+
     calculates the percentage of the rise since the last local low until price peaks
 
     returns:
     
     '''
-    def get_pole_height():
+    def get_pole_height(self):
         pass
         
 

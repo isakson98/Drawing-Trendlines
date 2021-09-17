@@ -266,7 +266,7 @@ class CommonScripts:
     #############################################################################   
     # update daily candles latest trendlines
     ############################################################################# 
-    def add_latest_length_of_pole(self, include_delisted):
+    def add_latest_pole_length(self, include_delisted):
         # get all tickers 
         daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
 
