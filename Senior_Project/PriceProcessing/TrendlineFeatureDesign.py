@@ -95,15 +95,18 @@ class TrendlineFeatureDesign:
 
     '''
     params:
+        flag_length -> computed during trendline detection
+        pole_length -> computed in self.get_pole_length(...)
 
     uses two columns the length of the consolidation (the flag) and 
-    the length of the pole (from local low to trendline's peak)
+    the length of the pole (from local low to trendline's peak). This demonstrates
+    how much of a "break" is needed for a successful stock to start moving higher again.
 
-    returns:
+    returns: a series that is ratio of pole length to flag length
 
     '''
-    def get_pole_to_flag_height_ratio(self):
-        pass
+    def get_pole_to_flag_length_ratio(self, pole_length, flag_length):
+        return pole_length / flag_length
 
     '''
     params:

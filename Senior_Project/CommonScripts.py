@@ -278,7 +278,22 @@ class CommonScripts:
         db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pole_length,
                                                 partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_ticker)                                                                
+                                                list_ticker_names=daily_raw_ticker)  
+
+    def add_latest_pole_flag_length_ratio(self, include_delisted):
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "n_prev" : 1}
+
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pole_flag_length_ratio,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker) 
+
 
 
     '''
