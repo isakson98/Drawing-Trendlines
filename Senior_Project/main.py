@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
 
     comm_obj = CommonScripts()
-    comm_obj.add_latest_pole_flag_length_ratio(include_delisted=True)
+    comm_obj.add_latest_flag_low_info(info_col="flag_low_timestamp",include_delisted=True)
     # comm_obj.draw_descending_trendline_on_bullish_stock("AMD")
     ###################################################################
     end = time.time()

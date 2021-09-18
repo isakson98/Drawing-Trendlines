@@ -10,7 +10,7 @@ from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
-
+# TEMP
 TOTAL_PROCESSES = mp.cpu_count() - 1
 # TOTAL_PROCESSES = 1
 
@@ -228,11 +228,64 @@ class FlatDBProssesedMod:
             # update
             trend_db_obj.update_data(file_name, trendline_df, keep_old=False)
 
+    '''
+    params:
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple -> pt.1 of key composition for needed dir
+                  timespan -> pt.2 of key composition for needed dir
+                  n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
+
+    
+    '''
+    def add_flag_low_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
+         # init db objects and verify that the directories exist 
+        multiple, timespan, n_prev, low_info = kwargs['multiple'], kwargs['timespan'], kwargs['n_prev'], kwargs["info_col"] 
+        try:
+            dir_params = str(multiple) + " " + timespan
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            needed_suf = raw_data_obj.suffix
+
+            dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
+            trend_db_obj = DataFlatDB(dir_list)
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        # create a list of files names 
+        list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+        # exit when the shared memory variable reaches the end
+        while list_increment.value != len(list_raw_ticker_file_names) - 1:
+            with list_increment.get_lock():
+                list_increment.value += 1
+            index = list_increment.value
+            raw_file_name = list_raw_ticker_file_names[index]
+            if index % 100 == 0 and index != 0:
+                self.process_lock.acquire()
+                print(f"Process identified extrema on {index} tickers")
+                self.process_lock.release()
+            # retrieve raw price data
+            raw_df = raw_data_obj.retrieve_data(raw_file_name)
+            if len(raw_df) == 0: continue
+
+            trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
+            trend_existing_df = pd.DataFrame()
+            trend_df_exists = trend_db_obj.verify_path_existence(trend_file_name)
+            if not trend_df_exists:  continue
+            trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
 
 
+            trendline_ftr_des = TrendlineFeatureDesign()
+            # adding pivotal column that a lot of things are based on
+            if "flag_low_timestamp" not in trend_existing_df or low_info == "flag_low_timestamp":
+                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp(raw_df, trend_existing_df)
+            elif trend_existing_df["flag_low_timestamp"].loc[-1] < 0:
+                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp()
+
+            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
-
+        
 
 
     '''

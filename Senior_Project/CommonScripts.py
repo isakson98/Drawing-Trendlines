@@ -264,7 +264,7 @@ class CommonScripts:
     
     '''
     #############################################################################   
-    # update daily candles latest trendlines
+    # update daily candles latest pole length
     ############################################################################# 
     def add_latest_pole_length(self, include_delisted):
         # get all tickers 
@@ -280,6 +280,9 @@ class CommonScripts:
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker)  
 
+    #############################################################################   
+    # update daily candles latest pole length to flag length ratio
+    ############################################################################# 
     def add_latest_pole_flag_length_ratio(self, include_delisted):
         # get all tickers 
         daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
@@ -293,6 +296,70 @@ class CommonScripts:
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pole_flag_length_ratio,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker) 
+
+    '''
+    params:
+        info_col -> new column that you want to be created. Also corresponds to a special function
+                    allowed :"flag_low_timestamp", "flag_low_progress", "flag_low_price"
+    
+    '''
+    #############################################################################   
+    # update daily trendlines latest low of flag
+    ############################################################################# 
+    def add_latest_flag_low_info(self, info_col, include_delisted):
+        allowed_info_params = ["flag_low_timestamp", "flag_low_progress", "flag_low_price"]
+        if info_col not in allowed_info_params:
+            raise ValueError("info_call in add_latest_flag_low_info does not match allowed values")
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "n_prev" : 1,
+                              "info_col" : info_col}
+
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_flag_low_info,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker)  
+
+
+    #############################################################################   
+    # update daily candles latest height features -> either on pole or flag, either percentage or range
+    ############################################################################# 
+    '''
+    params:
+        include_delisted -> do you want to include delisted or nah
+        pole_or_flag -> determine whether you want height of the pole or the flag
+                        accepts only "pole" or "flag"
+        pct_or_range -> determine whether you want % from starting pos to end or price range
+                        accepts only "percentage" or "price"
+
+    This function is used to detemine useful entry points 
+    
+    '''
+    def add_latest_height(self, pole_or_flag, pct_or_range, include_delisted):
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "n_prev" : 1,
+                              "pole_or_flag" : pole_or_flag,
+                              "pct_or_range" : pct_or_range}
+
+        if pole_or_flag != "pole" or pole_or_flag != "flag":
+            raise ValueError ("pole_or_flag argument can only be : pole or flag")
+        elif pct_or_range != "percentage" or  pct_or_range != "price":
+            raise ValueError ("pct_or_range argument can only be : percentage or price")
+
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_height,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker)  
+
 
 
 

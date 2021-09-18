@@ -108,15 +108,37 @@ class TrendlineFeatureDesign:
     def get_pole_to_flag_length_ratio(self, pole_length, flag_length):
         return pole_length / flag_length
 
+
+    new_raw_price_df = None
+    def __helper_flag_low_timestamp(self, flag_start, flag_end):
+        short_raw_df = self.new_raw_price_df[(self.new_raw_price_df["t"] >= flag_start) & (self.new_raw_price_df["t"] <= flag_end)]
+        low_timestamp = short_raw_df["t"].loc[short_raw_df["l"].idxmin()]
+        return low_timestamp
+
     '''
     params:
+        raw_df -> raw price df of the stock
+        trend_existing_df -> df with trendline features and other info
 
-    calculates the percentage of the rise since the last local low until price peaks
+    returns: a series that is ratio of pole length to flag length
 
-    returns:
-    
     '''
-    def get_pole_height(self):
+    def get_flag_low_timestamp(self, raw_price, trend_existing_df):
+        
+        self.new_raw_price_df = raw_price
+        flag_low_tmstmp_series = trend_existing_df.apply(lambda row : self.__helper_flag_low_timestamp(
+                                                                                                 row["t_start"],
+                                                                                                 row["t_end"], 
+                                                                                                 ), axis =1)                                                                                       
+
+        return flag_low_tmstmp_series
+
+    '''
+    params:
+        flag_length -> computed during trendline detection
+        pole_length -> computed in self.get_pole_length(...)
+    '''
+    def get_height(self, pole_or_flag, pct_or_range):
         pass
         
 
