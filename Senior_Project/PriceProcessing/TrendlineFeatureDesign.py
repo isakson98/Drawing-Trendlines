@@ -209,12 +209,18 @@ class TrendlineFeatureDesign:
         raw_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that shows the progress at which the flag bottomed.
-    NOTE: ends inclusive (includes the breakout day and the first day of flag as well)
+    returns: a series that shows the ratio between the peak - pivot price range to peak - low price range.
+    this ratio shows the pivot price relative to the flags low. 
 
     '''
-    def get_pivot_flag_height_ratio(price_start_series, price_flag_low_series, price_end_series):
-        pass
+    def get_pivot_flag_height_ratio(self, price_start_series:pd.Series, price_flag_low_series, price_end_series):
+
+        total_height = price_start_series - price_flag_low_series
+        peak_pivot_range = price_start_series - price_end_series
+        needed_ratio = peak_pivot_range / total_height
+
+        return needed_ratio        
+
 
     '''
     params:

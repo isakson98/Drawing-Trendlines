@@ -315,7 +315,7 @@ class FlatDBProssesedMod:
     def add_pivot_flag_height_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
         # init db objects and verify that the directories exist 
-        multiple, timespan, n_prev = kwargs['multiple'], kwargs['timespan'], kwargs['n_prev']  
+        multiple, timespan = kwargs['multiple'], kwargs['timespan']
         try:
             dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
@@ -340,19 +340,26 @@ class FlatDBProssesedMod:
             # retrieve raw price data
             trendline_df = trend_db_obj.retrieve_data(file_name)
 
-            needed_col = ["price_start", "price_end", "flag_low_price"]
+            needed_cols = ["price_start", "price_end", "flag_low_price"]
 
-            if needed_col not in trendline_df: continue
-            price_start_series = trendline_df[needed_col[0]]
-            price_end_series = trendline_df[needed_col[1]]
-            price_flag_low_series = trendline_df[needed_col[2]]
-            
+            skip_this_ticker = False
+            for col_name in needed_cols:
+                if col_name not in trendline_df: 
+                    skip_this_ticker = True
+
+            if skip_this_ticker: continue
+
+            price_start_series = trendline_df[needed_cols[0]]
+            price_end_series = trendline_df[needed_cols[1]]
+            price_flag_low_series = trendline_df[needed_cols[2]]
+                
             trendline_ftr_des = TrendlineFeatureDesign()
             # be careful changing the name of this column
-            trendline_df[f"pole_flag_length_ratio_{n_prev}"] = trendline_ftr_des.get_pivot_flag_height_ratio(price_start_series, 
+            trendline_df["pivot_to_flag_height_ratio"] = trendline_ftr_des.get_pivot_flag_height_ratio(price_start_series, 
                                                                                                              price_flag_low_series,
                                                                                                              price_end_series)
-            # update
+                                                                                             
+            # update trendline csv
             trend_db_obj.update_data(file_name, trendline_df, keep_old=False)
 
 
