@@ -11,8 +11,8 @@ from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
 # TEMP
-TOTAL_PROCESSES = mp.cpu_count() - 1
-# TOTAL_PROCESSES = 1
+# TOTAL_PROCESSES = mp.cpu_count() - 1
+TOTAL_PROCESSES = 1
 
 '''
 
@@ -228,6 +228,13 @@ class FlatDBProssesedMod:
             # update
             trend_db_obj.update_data(file_name, trendline_df, keep_old=False)
 
+
+    # using dictionary of functions to avoid if statements
+    flag_low_info_functions = {
+        "flag_low_timestamp" : TrendlineFeatureDesign().get_flag_low_timestamp,
+        "flag_low_price" : TrendlineFeatureDesign().get_flag_low_price,
+        # "flag_low_progress" : pass
+    }
     '''
     params:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
@@ -277,12 +284,21 @@ class FlatDBProssesedMod:
 
             trendline_ftr_des = TrendlineFeatureDesign()
             # adding pivotal column that a lot of things are based on
-            if "flag_low_timestamp" not in trend_existing_df or low_info == "flag_low_timestamp":
-                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp(raw_df, trend_existing_df)
-            elif trend_existing_df["flag_low_timestamp"].loc[-1] < 0:
-                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp()
+            if "flag_low_timestamp" not in trend_existing_df:
+                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp(trend_existing_df, raw_df)
+            elif trend_existing_df["flag_low_timestamp"].iloc[-1] < 0:
+                trend_existing_df["flag_low_timestamp"] = trendline_ftr_des.get_flag_low_timestamp(trend_existing_df, raw_df)
 
-            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            # TODO:
+            # only matches if the column name does not have any parameters
+            # only two fixed parameters allowed
+            if low_info != "flag_low_timestamp":
+                trendline_feature_function = self.flag_low_info_functions.get(low_info) 
+                trend_existing_df[low_info] = trendline_feature_function(trend_existing_df, raw_df)
+
+            print(trend_existing_df[['t_start', 't_end', low_info]].tail(10))
+            # TEMP
+            # trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
         

@@ -307,8 +307,9 @@ class CommonScripts:
     # update daily trendlines latest low of flag
     ############################################################################# 
     def add_latest_flag_low_info(self, info_col, include_delisted):
-        allowed_info_params = ["flag_low_timestamp", "flag_low_progress", "flag_low_price"]
-        if info_col not in allowed_info_params:
+        db_changes_obj = FlatDBProssesedMod()
+        # looks for value among the keys of the function dictionary
+        if info_col not in list(db_changes_obj.flag_low_info_functions.keys()):
             raise ValueError("info_call in add_latest_flag_low_info does not match allowed values")
         # get all tickers 
         daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
@@ -319,7 +320,6 @@ class CommonScripts:
                               "n_prev" : 1,
                               "info_col" : info_col}
 
-        db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_flag_low_info,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker)  

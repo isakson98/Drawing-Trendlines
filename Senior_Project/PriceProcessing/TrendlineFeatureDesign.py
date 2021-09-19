@@ -9,6 +9,7 @@ the trendlines AND the respective raw price where these trendlines were obtained
 
 '''
 class TrendlineFeatureDesign:
+    new_raw_price_df = None
     print_lock = mp.Lock()
     '''
     params:
@@ -109,7 +110,6 @@ class TrendlineFeatureDesign:
         return pole_length / flag_length
 
 
-    new_raw_price_df = None
     def __helper_flag_low_timestamp(self, flag_start, flag_end):
         short_raw_df = self.new_raw_price_df[(self.new_raw_price_df["t"] >= flag_start) & (self.new_raw_price_df["t"] <= flag_end)]
         low_timestamp = short_raw_df["t"].loc[short_raw_df["l"].idxmin()]
@@ -123,7 +123,7 @@ class TrendlineFeatureDesign:
     returns: a series that is ratio of pole length to flag length
 
     '''
-    def get_flag_low_timestamp(self, raw_price, trend_existing_df):
+    def get_flag_low_timestamp(self, trend_existing_df, raw_price):
         
         self.new_raw_price_df = raw_price
         flag_low_tmstmp_series = trend_existing_df.apply(lambda row : self.__helper_flag_low_timestamp(
@@ -132,6 +132,45 @@ class TrendlineFeatureDesign:
                                                                                                  ), axis =1)                                                                                       
 
         return flag_low_tmstmp_series
+
+    '''
+    
+    helper row function that gets price low from raw_df for 
+
+    '''
+    def __get_price_low(self, x):
+        # get the low of timestamp that is given from the trendline
+        low_value = self.new_raw_price_df['l'].loc[self.new_raw_price_df["t"] == x]
+        return float(low_value)
+
+
+    '''
+    params:
+        raw_df -> raw price df of the stock
+        trend_existing_df -> df with trendline features and other info
+
+    returns: a series that is ratio of pole length to flag length
+
+    '''
+    def get_flag_low_price(self, trendline_df, raw_price_df):
+
+        self.new_raw_price_df = raw_price_df
+        flag_low_tmstp_series = trendline_df["flag_low_timestamp"]
+
+        # get only unique end point values 
+        unique_tmstp = pd.Series(flag_low_tmstp_series.unique())
+        unique_df = pd.DataFrame({"unique_flag_low_tmstmp":unique_tmstp})
+        unique_df["flag_low_price"] = unique_tmstp.apply(self.__get_price_low)
+
+        # match the unique values to the same column length and frequency of endpoints as the input
+        match_length_df = pd.DataFrame({"flag_low_timestamp" : flag_low_tmstp_series})
+        match_length_df = pd.merge(left=match_length_df, 
+                                   right=unique_df,
+                                   left_on="flag_low_timestamp", 
+                                   right_on="unique_flag_low_tmstmp", 
+                                   how="left")
+        
+        return match_length_df["flag_low_price"]
 
     '''
     params:
