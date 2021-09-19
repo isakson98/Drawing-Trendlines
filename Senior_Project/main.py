@@ -24,11 +24,8 @@ if __name__ == '__main__':
     ###################################################################
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
-
-
     comm_obj = CommonScripts()
-    comm_obj.add_latest_flag_low_info(info_col="flag_low_price",include_delisted=False)
-    # comm_obj.draw_descending_trendline_on_bullish_stock("AMD")
+    comm_obj.add_latest_flag_low_info(info_col="flag_low_progress",include_delisted=True)
     ###################################################################
     end = time.time()
     print(str(end-start) + " seconds")

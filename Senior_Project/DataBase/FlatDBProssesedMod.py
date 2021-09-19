@@ -10,9 +10,8 @@ from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
-# TEMP
-# TOTAL_PROCESSES = mp.cpu_count() - 1
-TOTAL_PROCESSES = 1
+TOTAL_PROCESSES = mp.cpu_count() - 1
+# TOTAL_PROCESSES = 1
 
 '''
 
@@ -28,6 +27,13 @@ class FlatDBProssesedMod:
 
     process_lock = mp.Lock()
     list_incrementer = 0
+
+    # using dictionary of functions to avoid if statements
+    flag_low_info_functions = {
+        "flag_low_timestamp" : TrendlineFeatureDesign().get_flag_low_timestamp,
+        "flag_low_price" : TrendlineFeatureDesign().get_flag_low_price,
+        "flag_low_progress" : TrendlineFeatureDesign().get_flag_low_progress
+    }
 
 
     ################################################################################
@@ -60,7 +66,7 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with list_increment.get_lock():
+            with self.process_lock:
                 list_increment.value += 1
             index = list_increment.value
             file_name = list_raw_ticker_file_names[index]
@@ -147,7 +153,7 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with list_increment.get_lock():
+            with self.process_lock:
                 list_increment.value += 1
             index = list_increment.value
             file_name = list_raw_ticker_file_names[index]
@@ -205,7 +211,7 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with list_increment.get_lock():
+            with self.process_lock:
                 list_increment.value += 1
             index = list_increment.value
             file_name = list_raw_ticker_file_names[index]
@@ -228,13 +234,6 @@ class FlatDBProssesedMod:
             # update
             trend_db_obj.update_data(file_name, trendline_df, keep_old=False)
 
-
-    # using dictionary of functions to avoid if statements
-    flag_low_info_functions = {
-        "flag_low_timestamp" : TrendlineFeatureDesign().get_flag_low_timestamp,
-        "flag_low_price" : TrendlineFeatureDesign().get_flag_low_price,
-        # "flag_low_progress" : pass
-    }
     '''
     params:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
@@ -242,6 +241,8 @@ class FlatDBProssesedMod:
                   timespan -> pt.2 of key composition for needed dir
                   n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
 
+    # TODO
+    NOTE: function does not pick up from where it left off: make sure to adjust for that in the future
     
     '''
     def add_flag_low_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
@@ -263,13 +264,13 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with list_increment.get_lock():
+            with self.process_lock:
                 list_increment.value += 1
             index = list_increment.value
             raw_file_name = list_raw_ticker_file_names[index]
             if index % 100 == 0 and index != 0:
                 self.process_lock.acquire()
-                print(f"Process identified extrema on {index} tickers")
+                print(f"Process identified flag low info on {index} tickers")
                 self.process_lock.release()
             # retrieve raw price data
             raw_df = raw_data_obj.retrieve_data(raw_file_name)
@@ -293,12 +294,66 @@ class FlatDBProssesedMod:
             # only matches if the column name does not have any parameters
             # only two fixed parameters allowed
             if low_info != "flag_low_timestamp":
-                trendline_feature_function = self.flag_low_info_functions.get(low_info) 
-                trend_existing_df[low_info] = trendline_feature_function(trend_existing_df, raw_df)
+                if low_info not in trend_existing_df:
+                    trendline_feature_function = self.flag_low_info_functions.get(low_info) 
+                    trend_existing_df[low_info] = trendline_feature_function(trend_existing_df, raw_df)
 
-            print(trend_existing_df[['t_start', 't_end', low_info]].tail(10))
-            # TEMP
-            # trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+
+
+    '''
+    params:
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple -> pt.1 of key composition for needed dir
+                  timespan -> pt.2 of key composition for needed dir
+                  n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
+
+    adds latest pole length to flag (also known as base) length ratio to each trendline. 
+    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
+    which refers to the length from the N latest minima
+    '''
+    def add_pivot_flag_height_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
+
+        # init db objects and verify that the directories exist 
+        multiple, timespan, n_prev = kwargs['multiple'], kwargs['timespan'], kwargs['n_prev']  
+        try:
+            dir_params = str(multiple) + " " + timespan
+            dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
+            trend_db_obj = DataFlatDB(dir_list)
+            needed_suf = trend_db_obj.suffix
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        # create a list of files names 
+        list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+        # exit when the shared memory variable reaches the end
+        while list_increment.value != len(list_raw_ticker_file_names) - 1:
+            with self.process_lock:
+                list_increment.value += 1
+            index = list_increment.value
+            file_name = list_raw_ticker_file_names[index]
+            if index % 100 == 0 and index != 0:
+                self.process_lock.acquire()
+                print(f"Process identified extrema on {index} tickers")
+                self.process_lock.release()
+            # retrieve raw price data
+            trendline_df = trend_db_obj.retrieve_data(file_name)
+
+            needed_col = ["price_start", "price_end", "flag_low_price"]
+
+            if needed_col not in trendline_df: continue
+            price_start_series = trendline_df[needed_col[0]]
+            price_end_series = trendline_df[needed_col[1]]
+            price_flag_low_series = trendline_df[needed_col[2]]
+            
+            trendline_ftr_des = TrendlineFeatureDesign()
+            # be careful changing the name of this column
+            trendline_df[f"pole_flag_length_ratio_{n_prev}"] = trendline_ftr_des.get_pivot_flag_height_ratio(price_start_series, 
+                                                                                                             price_flag_low_series,
+                                                                                                             price_end_series)
+            # update
+            trend_db_obj.update_data(file_name, trendline_df, keep_old=False)
 
 
         

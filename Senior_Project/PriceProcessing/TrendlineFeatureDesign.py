@@ -138,7 +138,7 @@ class TrendlineFeatureDesign:
     helper row function that gets price low from raw_df for 
 
     '''
-    def __get_price_low(self, x):
+    def __helper_flag_low_price(self, x):
         # get the low of timestamp that is given from the trendline
         low_value = self.new_raw_price_df['l'].loc[self.new_raw_price_df["t"] == x]
         return float(low_value)
@@ -149,7 +149,7 @@ class TrendlineFeatureDesign:
         raw_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that is ratio of pole length to flag length
+    returns: a series that has a flag low price for the given row trendline
 
     '''
     def get_flag_low_price(self, trendline_df, raw_price_df):
@@ -160,7 +160,7 @@ class TrendlineFeatureDesign:
         # get only unique end point values 
         unique_tmstp = pd.Series(flag_low_tmstp_series.unique())
         unique_df = pd.DataFrame({"unique_flag_low_tmstmp":unique_tmstp})
-        unique_df["flag_low_price"] = unique_tmstp.apply(self.__get_price_low)
+        unique_df["flag_low_price"] = unique_tmstp.apply(self.__helper_flag_low_price)
 
         # match the unique values to the same column length and frequency of endpoints as the input
         match_length_df = pd.DataFrame({"flag_low_timestamp" : flag_low_tmstp_series})
@@ -171,6 +171,50 @@ class TrendlineFeatureDesign:
                                    how="left")
         
         return match_length_df["flag_low_price"]
+
+
+    def __helper_flag_low_progress(self, flag_start, flag_low_t, flag_end):
+        # find the length of the whole consolidation
+        short_raw_df = self.new_raw_price_df[(self.new_raw_price_df["t"] >= flag_start) & (self.new_raw_price_df["t"] <= flag_end)]
+        total_length = len(short_raw_df)
+        # find the length of consolidation before the low, including the low
+        progress_len = len(short_raw_df[short_raw_df["t"] <= flag_low_t])
+        # get the ratio of low location in the progreess over entire consolidation
+        progress = progress_len / total_length
+
+        return progress
+
+    '''
+    params:
+        raw_df -> raw price df of the stock
+        trend_existing_df -> df with trendline features and other info
+
+    returns: a series that shows the progress at which the flag bottomed.
+    NOTE: ends inclusive (includes the breakout day and the first day of flag as well)
+
+    '''
+    def get_flag_low_progress(self, trendline_df, raw_price_df):
+
+        self.new_raw_price_df = raw_price_df  
+
+        flag_low_progress_series = trendline_df.apply(lambda row : self.__helper_flag_low_progress( row["t_start"],
+                                                                                                 row["flag_low_timestamp"],
+                                                                                                 row["t_end"], 
+                                                                                                 ), axis =1)
+
+        return flag_low_progress_series
+
+    '''
+    params:
+        raw_df -> raw price df of the stock
+        trend_existing_df -> df with trendline features and other info
+
+    returns: a series that shows the progress at which the flag bottomed.
+    NOTE: ends inclusive (includes the breakout day and the first day of flag as well)
+
+    '''
+    def get_pivot_flag_height_ratio(price_start_series, price_flag_low_series, price_end_series):
+        pass
 
     '''
     params:

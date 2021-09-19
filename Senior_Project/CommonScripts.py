@@ -299,8 +299,7 @@ class CommonScripts:
 
     '''
     params:
-        info_col -> new column that you want to be created. Also corresponds to a special function
-                    allowed :"flag_low_timestamp", "flag_low_progress", "flag_low_price"
+        info_col -> new column that you want to be created. Also corresponds to a special dictionary
     
     '''
     #############################################################################   
