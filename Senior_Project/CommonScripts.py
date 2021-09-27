@@ -305,13 +305,14 @@ class CommonScripts:
     #############################################################################   
     # update daily trendlines latest low of flag
     ############################################################################# 
-    def add_latest_flag_low_info(self, include_delisted):
+    def add_latest_flag_low_info(self, low_info, include_delisted):
         # get all tickers 
         daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
 
         # default values are the ones that have been computed, and I know exist
         partial_fun_params = {"multiple" : 1,
-                              "timespan" : "day"}
+                              "timespan" : "day",
+                              "low_info" : low_info}
                               
         db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_flag_low_info,
@@ -333,6 +334,33 @@ class CommonScripts:
 
         db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pivot_flag_height_ratio,
+                                                partial_fun_params=partial_fun_params,
+                                                list_ticker_names=daily_raw_ticker) 
+
+
+    #############################################################################   
+    # update daily candles latest pole features -> 
+    ############################################################################# 
+    '''
+    params:
+        pole_info -> pole info that you want computed
+        include_delisted -> do you want to include delisted or nah
+
+    This function is used to detemine useful entry points 
+    
+    '''
+    def add_latest_pole_features(self, pole_info, include_delisted):
+        # get all tickers 
+        daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
+
+        # default values are the ones that have been computed, and I know exist
+        partial_fun_params = {"multiple" : 1,
+                              "timespan" : "day",
+                              "n_prev" : 1,
+                              "pole_info" : pole_info}
+                              
+        db_changes_obj = FlatDBProssesedMod()
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_flag_low_info,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker) 
 

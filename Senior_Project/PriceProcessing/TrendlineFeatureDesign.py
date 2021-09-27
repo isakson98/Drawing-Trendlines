@@ -209,7 +209,7 @@ class TrendlineFeatureDesign:
         raw_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that shows the ratio between the peak - pivot price range to peak - low price range.
+    returns: a series that shows the ratio between the peak - pivot price range and peak - low price range.
     this ratio shows the pivot price relative to the flags low. 
 
     '''
@@ -219,8 +219,54 @@ class TrendlineFeatureDesign:
         peak_pivot_range = price_start_series - price_end_series
         needed_ratio = peak_pivot_range / total_height
 
-        return needed_ratio        
+        return needed_ratio
 
+
+    def __helper_get_pole_start_timestamp(self, x, starting_extrema_df, n_prev):
+        # isolate the local start extrema index
+        cut_off_timestamp_df = starting_extrema_df[starting_extrema_df["t"] < x]
+        cut_off_extrema_df = cut_off_timestamp_df.tail(n_prev)
+        start_extrema_index = cut_off_extrema_df.last_valid_index() 
+        return start_extrema_index
+
+
+    '''
+    params:
+        raw_price_df -> raw price df of the stock
+        trendlines_df -> df with trendline features and other info
+
+    returns: a series that shows the timestamp of a pole start (as specified which local low)
+    for every trendline in trendline df. This is a useful starting measure for further data extraction
+    about that timestamp.
+
+    '''
+    def get_pole_start_timestamp(self, endpoint_series, raw_price, n_prev, type_start_extrema, distance):
+        extrema_col_name = "_".join([type_start_extrema, "extremes", str(distance)])
+        if extrema_col_name not in raw_price:
+            print("No extrema column in raw data")
+            return pd.Series()
+
+        # condense original to include only rows that are extremas that we want
+        starting_extrema_df = raw_price.loc[raw_price[extrema_col_name] == True]
+        # condense condensed df to include only specified extrema and timestamp columns
+        needed_raw_df = starting_extrema_df[[extrema_col_name, "t"]]
+
+        # get only unique end point values 
+        unique_endpoints = pd.Series(endpoint_series.unique())
+        unique_df = pd.DataFrame({"unique_endpoints":unique_endpoints})
+        unique_df["pole_start_timestamp"] = unique_endpoints.apply(self.__helper_get_pole_start_timestamp, args=(raw_price,
+                                                                                                      needed_raw_df, 
+                                                                                                      n_prev))
+
+        # match the unique values to the same column length and frequency of endpoints as the input
+        match_length_df = pd.DataFrame({"endpoint" : endpoint_series})
+        match_length_df = pd.merge(left=match_length_df, 
+                                   right=unique_df,
+                                   left_on="endpoint", 
+                                   right_on="unique_endpoints", 
+                                   how="left")
+        
+        return match_length_df["pole_length"]
 
     '''
     params:
