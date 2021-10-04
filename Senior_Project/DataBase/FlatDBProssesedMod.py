@@ -10,8 +10,8 @@ from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
-# TOTAL_PROCESSES = mp.cpu_count() - 1
-TOTAL_PROCESSES = 1
+TOTAL_PROCESSES = mp.cpu_count() - 1
+# TOTAL_PROCESSES = 1
 
 '''
 
@@ -73,8 +73,11 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with self.process_lock:
-                list_increment.value += 1
+
+            self.process_lock.acquire()
+            list_increment.value += 1
+            self.process_lock.release()
+
             index = list_increment.value
             file_name = list_raw_ticker_file_names[index]
             if index % 100 == 0 and index != 0:
@@ -405,12 +408,12 @@ class FlatDBProssesedMod:
             self.process_lock.acquire()
             list_increment.value += 1
             self.process_lock.release()
-            
+
             index = list_increment.value
             raw_file_name = list_raw_ticker_file_names[index]
             if index % 100 == 0 and index != 0:
                 self.process_lock.acquire()
-                print(f"Process identified flag low info on {index} tickers")
+                print(f"Process identified pole low info on {index} tickers")
                 self.process_lock.release()
             # retrieve raw price data
             raw_df = raw_data_obj.retrieve_data(raw_file_name)
@@ -447,7 +450,68 @@ class FlatDBProssesedMod:
                 trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
-        
+    '''
+    params:
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple -> pt.1 of key composition for needed dir
+                  timespan -> pt.2 of key composition for needed dir
+
+    adds latest pole length to flag (also known as base) length ratio to each trendline. 
+    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
+    which refers to the length from the N latest minima
+    '''
+    def add_pole_flag_height_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
+        # init db objects and verify that the directories exist 
+        multiple, timespan = kwargs['multiple'], kwargs['timespan']
+        try:
+            
+            dir_params = str(multiple) + " " + timespan
+
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            raw_needed_suf = raw_data_obj.suffix
+
+            dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
+            trend_db_obj = DataFlatDB(dir_list)
+            needed_suf = trend_db_obj.suffix
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        # create a list of files names 
+        list_triangle_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+        # exit when the shared memory variable reaches the end
+        while list_increment.value != len(list_triangle_ticker_file_names) - 1:
+            
+            self.process_lock.acquire()
+            list_increment.value += 1
+            self.process_lock.release()
+
+            index = list_increment.value
+            if index % 100 == 0 and index != 0:
+                self.process_lock.acquire()
+                print(f"Process identified pole flag height ratio on {index} tickers")
+                self.process_lock.release()
+
+            # retrieve raw price data
+            raw_file_name = list_ticker_names[index] + raw_needed_suf
+            raw_df = raw_data_obj.retrieve_data(raw_file_name)
+            if len(raw_df) == 0: continue
+
+            trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
+            trend_df_exists = trend_db_obj.verify_path_existence(trend_file_name)
+            if not trend_df_exists:  continue
+            trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
+
+            change_made = False
+            trendline_ftr_des = TrendlineFeatureDesign()
+            # adding pivotal column that a lot of things are based on
+            if "pole_flag_height_ratio" not in trend_existing_df:
+                trend_existing_df["pole_flag_height_ratio"] = trendline_ftr_des.get_pole_flag_height_ratio(trend_existing_df, raw_df)
+                change_made = True
+   
+            if change_made:
+                trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
     '''

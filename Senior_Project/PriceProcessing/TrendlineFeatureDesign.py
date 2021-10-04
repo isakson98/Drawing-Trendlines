@@ -351,6 +351,33 @@ class TrendlineFeatureDesign:
         return pole_height_in_terms_of_average_range
 
 
+    '''
+    params:
+        trendlines_df -> df with trendline features and other info
+        raw_df -> i do not need this for this function explicitly, but incase
+                  i have to calculate pre existing columns
+    
+    purpose: 
+        to give some persepctive on how well the flag is holding, i will 
+        calculate the ratio of pole's vertical range and the flag's vertical range.
+
+        NOTE: it's POLE / FLAG ratio (pole comes first)
+
+    returns: a series of ratios that correspond to each row (a trendline row)
+    '''  
+    def get_pole_flag_height_ratio(self, trendlines_df, raw_df):
+
+        if "flag_low_price" not in trendlines_df:
+            trendlines_df["flag_low_price"] = self.get_flag_low_price(trendlines_df, raw_df)
+        if "pole_start_price" not in trendlines_df:
+            trendlines_df["pole_start_price"] = self.get_pole_start_price(trendlines_df, raw_df)
+        
+        pole_range = trendlines_df["price_start"] - trendlines_df["pole_start_price"]
+        flag_range = trendlines_df["price_start"] - trendlines_df["flag_low_price"]
+
+        return pole_range / flag_range
+
+
         
 
         
