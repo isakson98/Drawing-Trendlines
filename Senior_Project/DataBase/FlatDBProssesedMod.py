@@ -11,6 +11,7 @@ from PriceProcessing.Labeling import Labeling
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
+# TEMP
 # TOTAL_PROCESSES = mp.cpu_count() - 1
 TOTAL_PROCESSES = 1
 
@@ -573,6 +574,7 @@ class FlatDBProssesedMod:
                                                                         num_of_lows, 
                                                                         profit_r)
 
+            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
     '''

@@ -20,6 +20,7 @@ from DataBase.FlatDBRawMod import FlatDBRawMod
 from DataBase.FlatDBProssesedMod import FlatDBProssesedMod
 from DataBase.StockScreener import ScreenerProcessor
 from DataBase.DataFlatDB import DataFlatDB
+from DataBase.FileConcat import FileConcat
 
 # PriceProcessing module files
 from PriceProcessing.RawPriceProcessing import RawPriceProcessing
@@ -408,10 +409,31 @@ class CommonScripts:
         partial_fun_params = {"multiple" : 1,
                               "timespan" : "day",
                               "num_of_lows" : 2,
-                              "profitable_r" : 2.5}
+                              "profitable_r" : 2}
                               
         db_changes_obj = FlatDBProssesedMod()
         db_changes_obj.parallel_ticker_workload(db_changes_obj.add_labels_triangles,
                                                 partial_fun_params=partial_fun_params,
-                                                list_ticker_names=daily_raw_ticker) 
+                                                list_ticker_names=daily_raw_ticker)
+
+
+    #############################################################################   
+    # Concatanates all the files in a directory into a single csv
+    ############################################################################# 
+    '''
+    params:
+        path -> path of the directory whose files you want all into one
+        path_to_save_in -> path to the end destination
+        file_name -> name of file
+
+    One of the final steps of this whole project.
+    After separately adding features to trendlines, you merge the content of
+    one directory into a single big csv for data cleaning/prep and training
+    
+    '''
+    def concat_all_directory_files(self, path_to_concat, path_to_save_in, file_name):
+        
+        
+        file_concat_obj = FileConcat(path_to_concat)
+        file_concat_obj.concat_files(path_to_save_in, file_name)
 

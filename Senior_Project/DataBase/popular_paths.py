@@ -33,6 +33,11 @@ popular_paths = {
     ############################
     # PROCESSED FOLDER
     ############################
-    'bull triangles 1 day' : {"dir_list" : ["data", "processed", "bullish_triangles", "1_day"]}
+    'bull triangles 1 day' : {"dir_list" : ["data", "processed", "bullish_triangles", "1_day"]},
+
+    ############################
+    # BIG DATA
+    ############################
+    'big data' : {"dir_list" : ["data", "big_data"]},
 
 }

@@ -15,6 +15,8 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 '''
 # popular scripts, combination of all modules features above
 from CommonScripts import CommonScripts
+from DataBase.popular_paths import popular_paths
+
 # robot made
 import time
 
@@ -25,7 +27,9 @@ if __name__ == '__main__':
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
     comm_obj = CommonScripts()
-    comm_obj.add_latest_labels_to_triangles(include_delisted=False)
+    comm_obj.concat_all_directory_files(popular_paths['bull triangles 1 day']["dir_list"], 
+                                        popular_paths['big data']["dir_list"], 
+                                        "big_bull_triangles")
     ##################################################################
     end = time.time()
     print(str(end-start) + " seconds")
