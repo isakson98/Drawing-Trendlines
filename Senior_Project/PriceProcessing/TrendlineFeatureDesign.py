@@ -222,12 +222,17 @@ class TrendlineFeatureDesign:
         return needed_ratio
 
 
+    # NOTE: rare error TypeError: cannot convert the series to <class 'int'>
+    # replacing it negative number to exclude these later
     def __helper_get_pole_start_timestamp(self, x, starting_extrema_df, n_prev):
         # isolate the local start extrema index
         cut_off_timestamp_df = starting_extrema_df[starting_extrema_df["t"] < x]
         cut_off_extrema_df = cut_off_timestamp_df.tail(n_prev)
-        start_extrema_index = cut_off_extrema_df.last_valid_index() 
-        return start_extrema_index
+        try:
+            timestamp_of_pole_start = int(cut_off_extrema_df["t"].head(1))
+        except:
+            timestamp_of_pole_start = -1
+        return timestamp_of_pole_start
 
 
     '''
@@ -240,6 +245,7 @@ class TrendlineFeatureDesign:
     about that timestamp.
 
     '''
+    
     def get_pole_start_timestamp(self, endpoint_series, raw_price, n_prev, type_start_extrema, distance):
         extrema_col_name = "_".join([type_start_extrema, "extremes", str(distance)])
         if extrema_col_name not in raw_price:
@@ -254,9 +260,8 @@ class TrendlineFeatureDesign:
         # get only unique end point values 
         unique_endpoints = pd.Series(endpoint_series.unique())
         unique_df = pd.DataFrame({"unique_endpoints":unique_endpoints})
-        unique_df["pole_start_timestamp"] = unique_endpoints.apply(self.__helper_get_pole_start_timestamp, args=(raw_price,
-                                                                                                      needed_raw_df, 
-                                                                                                      n_prev))
+        unique_df["pole_start_timestamp"] = unique_endpoints.apply(self.__helper_get_pole_start_timestamp, args=(needed_raw_df, 
+                                                                                                                 n_prev))
 
         # match the unique values to the same column length and frequency of endpoints as the input
         match_length_df = pd.DataFrame({"endpoint" : endpoint_series})
@@ -266,15 +271,95 @@ class TrendlineFeatureDesign:
                                    right_on="unique_endpoints", 
                                    how="left")
         
-        return match_length_df["pole_length"]
+        return match_length_df["pole_start_timestamp"]
 
     '''
     params:
-        flag_length -> computed during trendline detection
-        pole_length -> computed in self.get_pole_length(...)
+        raw_price_df -> raw price df of the stock
+        trendlines_df -> df with trendline features and other info
+    
+    purpose: 
+        this function retrieves the prices of lows of the given pole
+
+    returns: a series of lows at the timestamp given.
     '''
-    def get_height(self, pole_or_flag, pct_or_range):
-        pass
+    def get_pole_start_price(self, trend_existing_df, raw_price):        
+
+        merge_df =  pd.merge(left=trend_existing_df["pole_start_timestamp"], 
+                             left_on = trend_existing_df["pole_start_timestamp"],
+                             right=raw_price,
+                             right_on="t",
+                             how="left")
+        
+        return merge_df["l"]
+
+    
+    LAST_N_ROWS = 20
+    def __helper_get_pole_height_in_candles(self, row_timestamp_pole_low, raw_price):
+        
+        last_n_df = raw_price[raw_price["t"] < row_timestamp_pole_low].tail(self.LAST_N_ROWS)
+        last_n_df_range = last_n_df["h"] - last_n_df["l"]
+        last_n_average_range = last_n_df_range.sum() / self.LAST_N_ROWS
+
+        return last_n_average_range
+
+
+    '''
+    params:
+        raw_price_df -> raw price df of the stock
+        trendlines_df -> df with trendline features and other info
+    
+    purpose: 
+        to give some context to the model with regards to the pole height,
+        i want it to be measured with respect to the last n days before the start of the pole.
+        i want the pole to be measured in number of n previous average candles' heights.
+        ex. 3 previous candles before pole start have ranges(difference between height and low): 1.5, 2.5, 2
+        average range is (1.5 + 2.5 + 2)/3 = 2 dollars per day. Let's say pole height is 20 dollars up
+        that means the pole height is 20 / 2 = 10 average candles. 
+
+    returns: a series of 
+    '''
+    def get_pole_height_in_candles(self, trend_existing_df, raw_price):
+
+        if "pole_start_price" not in trend_existing_df:
+            trend_existing_df[ "pole_start_price" ] = self.get_pole_start_price(trend_existing_df, raw_price)
+
+        # NOTE: hardcoding this name
+        extrema_col_name = "l_extremes_5"
+        if extrema_col_name not in raw_price:
+            raise ValueError("No extrema column in raw data")
+
+        pole_start_tmstp_series = trend_existing_df["pole_start_timestamp"]
+
+        # get only unique end point values  -> calculate their range
+        unique_pole_start_tmstp_series = pd.Series(pole_start_tmstp_series.unique())
+        unique_df = pd.DataFrame({"unique_endpoints":unique_pole_start_tmstp_series})
+        unique_df["average_range"] = unique_pole_start_tmstp_series.apply(self.__helper_get_pole_height_in_candles, args=(raw_price,))
+
+        # match the unique values to the same column length and frequency of endpoints as the input
+        match_length_df = pd.DataFrame({"endpoint" : pole_start_tmstp_series})
+        match_length_df = pd.merge(left=match_length_df, 
+                                   right=unique_df,
+                                   left_on="endpoint", 
+                                   right_on="unique_endpoints", 
+                                   how="left")
+
+        
+        # calculate the height of the pole in terms of the average range
+        pole_height_in_terms_of_average_range = (trend_existing_df["price_start"] - trend_existing_df["pole_start_price"]) / match_length_df["average_range"]
+
+        return pole_height_in_terms_of_average_range
+
+
+        
+
+        
+
+
+
+
+
+
         
 
 

@@ -10,8 +10,8 @@ from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
-TOTAL_PROCESSES = mp.cpu_count() - 1
-# TOTAL_PROCESSES = 1
+# TOTAL_PROCESSES = mp.cpu_count() - 1
+TOTAL_PROCESSES = 1
 
 '''
 
@@ -38,8 +38,8 @@ class FlatDBProssesedMod:
     # using dictionary of functions that fall in the same category
     pole_low_info_functions = {
         "pole_start_timestamp" : TrendlineFeatureDesign().get_pole_start_timestamp,
-        "pole_start_price" : TrendlineFeatureDesign().get_pole_low_price_timestamp,
-        "pole_height" : TrendlineFeatureDesign().get_pole_height_timestamp,
+        "pole_start_price" : TrendlineFeatureDesign().get_pole_start_price,
+        "pole_height_in_candles" : TrendlineFeatureDesign().get_pole_height_in_candles,
     }
 
 
@@ -381,9 +381,10 @@ class FlatDBProssesedMod:
     adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
     which refers to the length from the N latest minima
     '''
-    def add_flag_low_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
+    # TODO: need to track of what column needs pre-existing columns for its own calculation
+    def add_pole_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
          # init db objects and verify that the directories exist 
-        multiple, timespan, n_prev, low_info = kwargs['multiple'], kwargs['timespan'], kwargs['n_prev'], kwargs["info_col"] 
+        multiple, timespan, n_prev, low_info = kwargs['multiple'], kwargs['timespan'], kwargs['n_prev'], kwargs["pole_info"] 
         try:
             dir_params = str(multiple) + " " + timespan
             dir_list = popular_paths[f'historical {dir_params}']['dir_list']
@@ -400,8 +401,11 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
         # exit when the shared memory variable reaches the end
         while list_increment.value != len(list_raw_ticker_file_names) - 1:
-            with self.process_lock:
-                list_increment.value += 1
+            
+            self.process_lock.acquire()
+            list_increment.value += 1
+            self.process_lock.release()
+            
             index = list_increment.value
             raw_file_name = list_raw_ticker_file_names[index]
             if index % 100 == 0 and index != 0:
@@ -418,37 +422,29 @@ class FlatDBProssesedMod:
             if not trend_df_exists:  continue
             trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
 
-
+            change_made = False
             trendline_ftr_des = TrendlineFeatureDesign()
             # adding pivotal column that a lot of things are based on
             if "pole_start_timestamp" not in trend_existing_df:
-                trend_existing_df["pole_start_timestamp"] = trendline_ftr_des.get_pole_start_timestamp(trend_existing_df["start"], 
+                trend_existing_df["pole_start_timestamp"] = trendline_ftr_des.get_pole_start_timestamp(trend_existing_df["t_start"], 
                                                                                                        raw_df,
                                                                                                        n_prev,
                                                                                                        "l",
                                                                                                        5)
+                change_made = True
             elif trend_existing_df["pole_start_timestamp"].iloc[-1] < 0:
                 trend_existing_df["pole_start_timestamp"] = trendline_ftr_des.get_pole_start_timestamp(trend_existing_df, raw_df)
             
-            # adding pivotal column that a lot of things are based on
-            # if "pole_start_price" not in trend_existing_df:
-            #     trend_existing_df["pole_start_price"] = trendline_ftr_des.get_pole_start_timestamp(trend_existing_df["start"], 
-            #                                                                                            raw_df,
-            #                                                                                            n_prev,
-            #                                                                                            "l",
-            #                                                                                            5)
-            # elif trend_existing_df["pole_start_price"].iloc[-1] < 0:
-            #     trend_existing_df["pole_start_price"] = trendline_ftr_des.get_pole_start_timestamp(trend_existing_df, raw_df)
-
             # TODO:
             # only matches if the column name does not have any parameters
             # only two fixed parameters allowed
-            if low_info != "pole_start_timestamp":
-                if low_info not in trend_existing_df:
-                    pole_feature_function = self.pole_low_info_functions.get(low_info) 
-                    trend_existing_df[low_info] = pole_feature_function(trend_existing_df, raw_df)
+            if low_info != "pole_start_timestamp" and low_info not in trend_existing_df:
+                pole_feature_function = self.pole_low_info_functions.get(low_info) 
+                trend_existing_df[low_info] = pole_feature_function(trend_existing_df, raw_df)
+                change_made = True
 
-            trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+            if change_made:
+                trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
 
 
         

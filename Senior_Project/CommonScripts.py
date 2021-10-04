@@ -350,6 +350,10 @@ class CommonScripts:
     
     '''
     def add_latest_pole_features(self, pole_info, include_delisted):
+
+        db_changes_obj = FlatDBProssesedMod()
+        if pole_info not in list(db_changes_obj.pole_low_info_functions.keys()):
+            raise ValueError("Invalid value for pole_info parameter")
         # get all tickers 
         daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
 
@@ -360,167 +364,7 @@ class CommonScripts:
                               "pole_info" : pole_info}
                               
         db_changes_obj = FlatDBProssesedMod()
-        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_flag_low_info,
+        db_changes_obj.parallel_ticker_workload(db_changes_obj.add_pole_info,
                                                 partial_fun_params=partial_fun_params,
                                                 list_ticker_names=daily_raw_ticker) 
 
-
-    #############################################################################   
-    # update daily candles latest height features -> either on pole or flag, either percentage or range
-    ############################################################################# 
-    '''
-    params:
-        include_delisted -> do you want to include delisted or nah
-        pole_or_flag -> determine whether you want height of the pole or the flag
-                        accepts only "pole" or "flag"
-        pct_or_range -> determine whether you want % from starting pos to end or price range
-                        accepts only "percentage" or "price"
-
-    This function is used to detemine useful entry points 
-    
-    '''
-    def add_latest_height(self, pole_or_flag, pct_or_range, include_delisted):
-        # # get all tickers 
-        # daily_raw_ticker = self.retrieve_ticker_list(include_delisted=include_delisted)
-
-        # # default values are the ones that have been computed, and I know exist
-        # partial_fun_params = {"multiple" : 1,
-        #                       "timespan" : "day",
-        #                       "n_prev" : 1,
-        #                       "pole_or_flag" : pole_or_flag,
-        #                       "pct_or_range" : pct_or_range}
-
-        # if pole_or_flag != "pole" or pole_or_flag != "flag":
-        #     raise ValueError ("pole_or_flag argument can only be : pole or flag")
-        # elif pct_or_range != "percentage" or  pct_or_range != "price":
-        #     raise ValueError ("pct_or_range argument can only be : percentage or price")
-
-        # db_changes_obj = FlatDBProssesedMod()
-        # db_changes_obj.parallel_ticker_workload(db_changes_obj.add_height,
-        #                                         partial_fun_params=partial_fun_params,
-        #                                         list_ticker_names=daily_raw_ticker)  
-        pass
-
-
-
-
-    '''
-    
-    DIAGNOSTICS BELOW
-    
-    '''
-    
-    #############################################################################   
-    # DIAGNOSTICS: measure frequency of repeating trendlines
-    ############################################################################# 
-    '''
-    you have to add a member variable list already_computed_trendlines to TrendlineDrawing class that collects
-    data on price, slope
-    '''
-    def measure_duplicate_trendline_count(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
-        
-        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-
-        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
-        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
-
-        # composed of starting price and coefficient of the slope
-        trendline_list = []
-        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
-        for prec in precision:    
-            _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    preciseness=prec, 
-                                                                    max_trendlines_drawn=1)  
-            trendline_list.extend(trendline_obj.already_computed_trendlines)
-
-        # sort by slope
-        trendline_list.sort(key = lambda x : x[1])
-        repeating_trendline_calc_dict = {}
-        match_coef_to_start_price = {}
-        for trendline_piece in trendline_list:
-            slope = trendline_piece[1]
-            # counting the frequency of the same slope in list of trendlines ->  
-            # frequency means how many times the trendline is calculated redundtly since it already exists 
-            repeating_trendline_calc_dict[slope] = repeating_trendline_calc_dict.get(slope, 0) + 1
-            # measuring how many starting price points have the same slope.
-            # im looking for relationship many to one -> starting points to slopes, 
-            # meaning ONLY one starting price per slope, which will make a slope a unique key
-            match_coef_to_start_price[slope] = match_coef_to_start_price.get(slope, trendline_piece)
-            if match_coef_to_start_price[slope][0] != trendline_piece[0]:
-                print("same slope but different starting prices:")
-                print(f"{trendline_piece} and {match_coef_to_start_price[slope]}")
-                repeating_df = pd.DataFrame([match_coef_to_start_price[slope][2], trendline_piece[2]])
-                visualize_ticker(raw_df, trendlines=repeating_df)
-                # visualize the difference
-
-        sorted_dict_repeat_slopes = {k: v for k, v in sorted(repeating_trendline_calc_dict.items(), key=lambda item: item[1], reverse=True)}
-        print("Demonstrates how many times a single slope is calculated rendunduntly worst case scenario: ")
-        frequency_most_calculated_lines = list(sorted_dict_repeat_slopes.values())
-        print(frequency_most_calculated_lines[:5])
-        print()
-        sum_trendline_calculations = sum(list(repeating_trendline_calc_dict.values()))
-        print(f"Number of unique trendline: {len(sorted_dict_repeat_slopes)}")
-        print(f"Total number of times trendlines are currently calculated {sum_trendline_calculations}")
-
-
-    '''
-    
-    Using diagnostics in this function, I determined that the reason I have repeating slope 
-    values in the trendline cache is because there can be the same trendline plotted with 
-    different base length from the extrema point. With this in mind, I can adjust how I seek
-    my cache by allowing a window of +- 3 candles
-    
-    '''
-    def measure_trendline_cache_efficacy(self, STOCK_TO_VISUALIZE, debug, precision=[3, 4, 5, 6]):
-        raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        raw_df = raw_obj.retrieve_data(STOCK_TO_VISUALIZE+raw_obj.suffix)
-
-        def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
-        start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
-
-        # composed of starting price and coefficient of the slope
-        trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
-        for prec in precision:    
-            _ = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
-                                                                    preciseness=prec, 
-                                                                    max_trendlines_drawn=2)  
-        
-        dict_trendlines = trendline_obj.trendline_cache
-
-        # stores [count of value frequency, hash_key from trendline class]
-        duplicate_reg = {}
-
-        # i want to find keys that have the same values, and whether i can adjust 
-        # how I create them, so that a new version can encompass duplicates
-        for key in dict_trendlines:
-            series_strip, reg = dict_trendlines[key]
-            # initialize with 0 count as the first element and hash key as the second value
-            duplicate_reg[reg[1]] = duplicate_reg.get(reg[1], [0, key, series_strip])
-            # add to the frequency
-            duplicate_reg[reg[1]][0] = duplicate_reg[reg[1]][0] + 1
-            # TODO : figure out how to further shrink trendline duplication
-            # my observations so far: there are duplicated trendlines, whose days_forward varies
-            if duplicate_reg[reg[1]][0] > 1 and debug:
-                print("Duplicate values")
-                print("first of category lines refers to the same entity")
-                first_dup_key = duplicate_reg[reg[1]][1]
-                print(first_dup_key)
-                print(key)
-                print(first_dup_key[8:])
-                print(key[8:])
-                print(duplicate_reg[reg[1]][2])
-                print(series_strip)
-                print()
-
-        sorted_dict_repeat_slopes = {k: v for k, v in sorted(duplicate_reg.items(), key=lambda item: item[1], reverse=True)}
-        print("Demonstrates how many times a single slope is calculated rendunduntly worst case scenario: ")
-        frequency_most_calculated_lines = list(sorted_dict_repeat_slopes.values())
-        print(frequency_most_calculated_lines[:5])
-
-
-
-    
-
-
-    
