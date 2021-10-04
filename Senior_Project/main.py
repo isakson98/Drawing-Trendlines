@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
     comm_obj = CommonScripts()
-    comm_obj.add_latest_pole_flag_height_ratio(include_delisted=True)
+    comm_obj.add_latest_labels_to_triangles(include_delisted=False)
     ##################################################################
     end = time.time()
     print(str(end-start) + " seconds")

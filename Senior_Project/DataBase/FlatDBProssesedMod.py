@@ -6,12 +6,13 @@ import pandas as pd
 from PriceProcessing.TrendlineDrawing import TrendlineDrawing
 from PriceProcessing.TrendlineProcessing import TrendlineProcessing
 from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
+from PriceProcessing.Labeling import Labeling
 
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.popular_paths import popular_paths
 
-TOTAL_PROCESSES = mp.cpu_count() - 1
-# TOTAL_PROCESSES = 1
+# TOTAL_PROCESSES = mp.cpu_count() - 1
+TOTAL_PROCESSES = 1
 
 '''
 
@@ -512,6 +513,66 @@ class FlatDBProssesedMod:
    
             if change_made:
                 trend_db_obj.update_data(trend_file_name, trend_existing_df, keep_old=False)
+        
+    
+    '''
+    params:
+        list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
+        kwargs -> multiple -> pt.1 of key composition for needed dir
+                  timespan -> pt.2 of key composition for needed dir
+
+    add latest labels
+    '''
+    def add_labels_triangles(self, list_ticker_names, list_increment : mp.Value, **kwargs):
+        # init db objects and verify that the directories exist 
+        multiple, timespan, num_of_lows, profit_r = kwargs['multiple'], kwargs['timespan'], kwargs["num_of_lows"], kwargs["profitable_r"]
+        try:
+            
+            dir_params = str(multiple) + " " + timespan
+
+            dir_list = popular_paths[f'historical {dir_params}']['dir_list']
+            raw_data_obj = DataFlatDB(dir_list)
+            raw_needed_suf = raw_data_obj.suffix
+
+            dir_list = popular_paths[f'bull triangles {dir_params}']['dir_list']
+            trend_db_obj = DataFlatDB(dir_list)
+            needed_suf = trend_db_obj.suffix
+        except:
+            error_statement = f"Wrong directory parameters {dir_params}" 
+            raise ValueError(error_statement)
+
+        # create a list of files names 
+        list_triangle_ticker_file_names = [ticker + needed_suf for ticker in list_ticker_names]
+        # exit when the shared memory variable reaches the end
+        while list_increment.value != len(list_triangle_ticker_file_names) - 1:
+            
+            self.process_lock.acquire()
+            list_increment.value += 1
+            self.process_lock.release()
+
+            index = list_increment.value
+            if index % 100 == 0 and index != 0:
+                self.process_lock.acquire()
+                print(f"Process identified pole flag height ratio on {index} tickers")
+                self.process_lock.release()
+
+            # retrieve raw price data
+            raw_file_name = list_ticker_names[index] + raw_needed_suf
+            raw_df = raw_data_obj.retrieve_data(raw_file_name)
+            if len(raw_df) == 0: continue
+
+            trend_file_name = list_ticker_names[index] + trend_db_obj.suffix
+            trend_df_exists = trend_db_obj.verify_path_existence(trend_file_name)
+            if not trend_df_exists:  continue
+            trend_existing_df = trend_db_obj.retrieve_data(trend_file_name)
+
+            labeling_obj = Labeling()
+            label_col_name = f"label_class_{num_of_lows}_num_of_lows_{profit_r}_profit_r"
+            trend_existing_df[label_col_name] = labeling_obj.calculate_binary_label(trend_existing_df, 
+                                                                        raw_df, 
+                                                                        num_of_lows, 
+                                                                        profit_r)
+
 
 
     '''
