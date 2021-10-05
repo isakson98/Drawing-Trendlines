@@ -27,9 +27,12 @@ if __name__ == '__main__':
     # PLACE SCRIPT BETWEEN THE TWO LINES
     ###################################################################
     comm_obj = CommonScripts()
-    comm_obj.concat_all_directory_files(popular_paths['bull triangles 1 day']["dir_list"], 
-                                        popular_paths['big data']["dir_list"], 
-                                        "big_bull_triangles")
+
+    comm_obj.draw_descending_trendline_on_bullish_stock("AAPL")
+    # comm_obj.add_columns_to_big_files(popular_paths['big data']["dir_list"], 
+    #                                   "big_bull_triangles_big_data.csv", 
+    #                                   popular_paths['historical 1 day']["dir_list"], 
+    #                                   ["avg_v_20"])
     ##################################################################
     end = time.time()
     print(str(end-start) + " seconds")

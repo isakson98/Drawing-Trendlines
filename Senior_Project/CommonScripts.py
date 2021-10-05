@@ -431,9 +431,31 @@ class CommonScripts:
     one directory into a single big csv for data cleaning/prep and training
     
     '''
-    def concat_all_directory_files(self, path_to_concat, path_to_save_in, file_name):
+    def concat_all_directory_files(self, path_to_save_in, path_to_concat, file_name):
         
         
-        file_concat_obj = FileConcat(path_to_concat)
-        file_concat_obj.concat_files(path_to_save_in, file_name)
+        file_concat_obj = FileConcat(path_to_save_in)
+        file_concat_obj.concat_files(path_to_concat, file_name)
+
+
+    #############################################################################   
+    # Concatanates all the files in a directory into a single csv
+    ############################################################################# 
+    '''
+    params:
+        path_to_concated_file
+        concatted_file
+        path_to_dir_for_extra_cols
+        col_names
+
+    
+    Using this function to add new columns to big data, by matching the ticker name
+    and the timestamp
+
+    '''
+    def add_columns_to_big_files(self, path_to_concated_file, concatted_file, path_to_dir_for_extra_cols, col_names):
+        
+        
+        file_concat_obj = FileConcat(path_to_concated_file)
+        file_concat_obj.add_new_columns(concatted_file, path_to_dir_for_extra_cols, col_names)
 
