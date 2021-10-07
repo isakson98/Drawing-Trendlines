@@ -17,14 +17,18 @@ class TrendlineFeatureDesign:
         needed_raw_df -> only includes
         n_prev
 
-    used by apply() in get_length_from_prev_local_extrema().
+    purpose: 
+        used by apply() in get_length_from_prev_local_extrema().
 
-    HEAVILY USING THE INDEX -> make sure it's not modified in the future
+        HEAVILY USING THE INDEX -> make sure it's not modified in the future
 
-    gets length from one local extrema to the other, including both extremas
+        gets length from one local extrema to the other, including both extremas
 
-    NOTE: in some rare cases, my start_extrema_index variable becomes None, so i will assign a negative value
-    and then remove these rows during data processing.
+        NOTE: in some rare cases, my start_extrema_index variable becomes None, so i will assign a negative value
+        and then remove these rows during data processing.
+
+    return:
+        int value for the column of the respective row 
 
     '''
     def __helper_len_from_local_extrema(self, x, needed_raw_df, starting_extrema_df, n_prev):
@@ -55,11 +59,12 @@ class TrendlineFeatureDesign:
         distance -> 2nd component of column that stores local extrema
         n_prev -> which particular previous low you want the length to start from ()
 
-    Many highs and lows have many trendlines coming out of them, but all of them essentially 
-    will have the same output for this function if they share the same starting point.
+    purpose: 
+        Many highs and lows have many trendlines coming out of them, but all of them essentially 
+        will have the same output for this function if they share the same starting point.
 
-    That's why I only calculate this feature on unique timestamps and then build up the original frequency count
-    by merging 
+        That's why I only calculate this feature on unique timestamps and then build up the original frequency count
+        by merging 
 
     returns:
         series that match endpoint_series length, where each row corresponds to the same trendline in endpoint_series
@@ -99,9 +104,10 @@ class TrendlineFeatureDesign:
         flag_length -> computed during trendline detection
         pole_length -> computed in self.get_pole_length(...)
 
-    uses two columns the length of the consolidation (the flag) and 
-    the length of the pole (from local low to trendline's peak). This demonstrates
-    how much of a "break" is needed for a successful stock to start moving higher again.
+    purpose: 
+        uses two columns the length of the consolidation (the flag) and 
+        the length of the pole (from local low to trendline's peak). This demonstrates
+        how much of a "break" is needed for a successful stock to start moving higher again.
 
     returns: a series that is ratio of pole length to flag length
 
@@ -110,17 +116,35 @@ class TrendlineFeatureDesign:
         return pole_length / flag_length
 
 
+    '''
+    params:
+        flag_start -> starting timestamp
+        flag_end -> ending timsetamp of the trendline
+
+    purpose: 
+        getting the timestamp of the flag low (used as intermediary value)
+
+        NOTE: used by apply() in get_flag_low_timestamp 
+
+    returns: 
+        the timestamp of low
+
+    '''
     def __helper_flag_low_timestamp(self, flag_start, flag_end):
         short_raw_df = self.new_raw_price_df[(self.new_raw_price_df["t"] >= flag_start) & (self.new_raw_price_df["t"] <= flag_end)]
         low_timestamp = short_raw_df["t"].loc[short_raw_df["l"].idxmin()]
         return low_timestamp
-
+    
     '''
     params:
         raw_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that is ratio of pole length to flag length
+    purpose: 
+        getting the timestamp of the flag low (used as intermediary value)
+
+    returns: 
+        a series that is ratio of pole length to flag length
 
     '''
     def get_flag_low_timestamp(self, trend_existing_df, raw_price):
@@ -134,13 +158,19 @@ class TrendlineFeatureDesign:
         return flag_low_tmstmp_series
 
     '''
-    
-    helper row function that gets price low from raw_df for 
+    params:
+        tmstmp -> timestamp at which the low is
 
+    purpose:
+        helper row function that gets price low from raw_df for 
+        NOTE: used by apply() in get_flag_low_price
+
+    return:
+        low of the flag for repsective row
     '''
-    def __helper_flag_low_price(self, x):
+    def __helper_flag_low_price(self, tmstmp):
         # get the low of timestamp that is given from the trendline
-        low_value = self.new_raw_price_df['l'].loc[self.new_raw_price_df["t"] == x]
+        low_value = self.new_raw_price_df['l'].loc[self.new_raw_price_df["t"] == tmstmp]
         return float(low_value)
 
 
@@ -173,6 +203,24 @@ class TrendlineFeatureDesign:
         return match_length_df["flag_low_price"]
 
 
+    '''
+    params:
+        flag_start -> timsetamp of flag start
+        flag_low_t -> timsetamp of flag low
+        flag_end -> timestamp of flag end
+
+    purpose:
+        applies row wise operation of getting the flag low
+        perhaps a more efficient way would be to check wehther there is
+        a weekend in between and subtract that from the length
+        instead of applying inquality operation each time
+
+        NOTE: used by apply() method in get_flag_low_progress()
+
+    return:
+        progress ratio value
+    
+    '''
     def __helper_flag_low_progress(self, flag_start, flag_low_t, flag_end):
         # find the length of the whole consolidation
         short_raw_df = self.new_raw_price_df[(self.new_raw_price_df["t"] >= flag_start) & (self.new_raw_price_df["t"] <= flag_end)]
@@ -186,17 +234,21 @@ class TrendlineFeatureDesign:
 
     '''
     params:
-        raw_df -> raw price df of the stock
+        raw_price_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that shows the progress at which the flag bottomed.
-    NOTE: ends inclusive (includes the breakout day and the first day of flag as well)
+    purpose:
+        caclculates the ratio of where the low of the flag is relative to the length of it
+
+        NOTE: ends inclusive (includes the breakout day and the first day of flag as well)
+
+    returns:    
+        a series that shows the progress at which the flag bottomed.
 
     '''
     def get_flag_low_progress(self, trendline_df, raw_price_df):
 
         self.new_raw_price_df = raw_price_df  
-
         flag_low_progress_series = trendline_df.apply(lambda row : self.__helper_flag_low_progress( row["t_start"],
                                                                                                  row["flag_low_timestamp"],
                                                                                                  row["t_end"], 
@@ -209,9 +261,12 @@ class TrendlineFeatureDesign:
         raw_df -> raw price df of the stock
         trend_existing_df -> df with trendline features and other info
 
-    returns: a series that shows the ratio between the peak - pivot price range and peak - low price range.
-    this ratio shows the pivot price relative to the flags low. 
+    purpose:
+        this ratio shows the pivot price relative to the flags low. 
 
+    returns
+        a series that shows the ratio between the peak - pivot price range and peak - low price range.
+    
     '''
     def get_pivot_flag_height_ratio(self, price_start_series:pd.Series, price_flag_low_series, price_end_series):
 
@@ -222,8 +277,20 @@ class TrendlineFeatureDesign:
         return needed_ratio
 
 
-    # NOTE: rare error TypeError: cannot convert the series to <class 'int'>
-    # replacing it negative number to exclude these later
+    '''
+    params:
+        x -> 
+        starting_extrema_df -> start of extrema 
+        n_prev
+
+    purpose:
+        NOTE: rare error TypeError: cannot convert the series to <class 'int'>
+        replacing it negative number to exclude these later
+
+    return:
+        timestamp of when the pole started (its lows essentially)
+    
+    '''
     def __helper_get_pole_start_timestamp(self, x, starting_extrema_df, n_prev):
         # isolate the local start extrema index
         cut_off_timestamp_df = starting_extrema_df[starting_extrema_df["t"] < x]
@@ -240,9 +307,13 @@ class TrendlineFeatureDesign:
         raw_price_df -> raw price df of the stock
         trendlines_df -> df with trendline features and other info
 
-    returns: a series that shows the timestamp of a pole start (as specified which local low)
-    for every trendline in trendline df. This is a useful starting measure for further data extraction
-    about that timestamp.
+    purpose:
+        calculates a series that shows the timestamp of a pole start (as specified which local low)
+        for every trendline in trendline df. This is a useful starting measure for further data extraction
+        about that timestamp.
+
+    returns: 
+        a series that shows the timestamp of a pole start 
 
     '''
     
@@ -281,7 +352,8 @@ class TrendlineFeatureDesign:
     purpose: 
         this function retrieves the prices of lows of the given pole
 
-    returns: a series of lows at the timestamp given.
+    returns: 
+        a series of lows at the timestamp given.
     '''
     def get_pole_start_price(self, trend_existing_df, raw_price):        
 
@@ -294,6 +366,18 @@ class TrendlineFeatureDesign:
         return merge_df["l"]
 
     
+    '''
+    purpose:
+        row_timestamp_pole_low
+        raw_price
+
+    purpose:
+        used by apply() in get_pole_height_in_candles
+
+    returns:
+        float value of the last few candles' average true
+    
+    '''
     LAST_N_ROWS = 20
     def __helper_get_pole_height_in_candles(self, row_timestamp_pole_low, raw_price):
         
@@ -317,7 +401,8 @@ class TrendlineFeatureDesign:
         average range is (1.5 + 2.5 + 2)/3 = 2 dollars per day. Let's say pole height is 20 dollars up
         that means the pole height is 20 / 2 = 10 average candles. 
 
-    returns: a series of 
+    returns: 
+        a series of pole height in previous candle
     '''
     def get_pole_height_in_candles(self, trend_existing_df, raw_price):
 
@@ -363,7 +448,8 @@ class TrendlineFeatureDesign:
 
         NOTE: it's POLE / FLAG ratio (pole comes first)
 
-    returns: a series of ratios that correspond to each row (a trendline row)
+    returns: 
+        a series of ratios that correspond to each row (a trendline row)
     '''  
     def get_pole_flag_height_ratio(self, trendlines_df, raw_df):
 

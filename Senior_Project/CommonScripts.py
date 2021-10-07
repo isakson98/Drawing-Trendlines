@@ -14,25 +14,18 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 
 '''
 # database module
-from pandas.core.frame import DataFrame
 from DataBase.popular_paths import popular_paths
 from DataBase.FlatDBRawMod import FlatDBRawMod
 from DataBase.FlatDBProssesedMod import FlatDBProssesedMod
-from DataBase.StockScreener import ScreenerProcessor
 from DataBase.DataFlatDB import DataFlatDB
 from DataBase.FileConcat import FileConcat
 
 # PriceProcessing module files
-from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 from PriceProcessing.TrendlineDrawing import TrendlineDrawing
 from PriceProcessing.TrendlineProcessing import TrendlineProcessing
 from PriceProcessing.Visualize import visualize_ticker
-from PriceProcessing.TrendlineFeatureDesign import TrendlineFeatureDesign
 
 # robot made
-import datetime as dt
-import matplotlib.pyplot as plt
-import pandas as pd
 import random
 
 ##################################################################################################
@@ -47,9 +40,10 @@ class CommonScripts:
     '''
     params:
         include_delisted -> true or false whether you want to include delisted as well
-    This is a frequently used feature. Retriving available ticker names.
 
-    This function returns list of file names, not merely ticker names
+    purpose:
+        This is a frequently used feature. Retriving available ticker names.
+        This function returns list of file names, not merely ticker names
 
     returns:
         daily_raw_file_names -> list of daily file names (with extensions) but not paths (not needed)
@@ -62,15 +56,34 @@ class CommonScripts:
         else:
             # retrieve list of current tickers
             ticker_names = self.retrieve_all_current_ticker_names()
-
         return ticker_names
 
+    '''
+    params:
+        none
+
+    purpose:
+        retrieves all raw daily file names
+
+    returns:
+        raw_file_names -> list of file names
+    '''
     def retrieve_all_raw_dir_daily_file_names(self):
         dir_list = popular_paths['historical 1 day']["dir_list"]
         refresh_obj = DataFlatDB(dir_list)
         raw_file_names = refresh_obj.retrieve_all_file_names()
         return raw_file_names
 
+    '''
+    params:
+        none
+
+    purpose:
+        retrieves current tickers only
+
+    returns:
+        list_cur_tickers -> list of current tickers only 
+    '''
     def retrieve_all_current_ticker_names(self):
         # retrieve list of current tickers
         dir_list = popular_paths['current tickers']["dir_list"]
@@ -118,23 +131,6 @@ class CommonScripts:
         refresh_obj.threaded_add_new_price_data(dir_list, params, update=True)
 
 
-    #############################################################################   
-    # update daily candles for all current tickers
-    ############################################################################# 
-
-    def get_higher_highs_one_stock_daily(self, STOCK_TO_VISUALIZE):
-
-        data_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
-        ohlc_df = data_obj.retrieve_data(STOCK_TO_VISUALIZE+data_obj.suffix)
-
-        tick_obj = RawPriceProcessing()
-        # get higher highs
-        higher_highs = tick_obj.get_higher_extrema(ohlc_df, extrema="h", distance=5, above_last_num_highs=2)
-        # get highs that are higher than previous higher highs
-        higher_highs = tick_obj.get_higher_extrema(higher_highs, extrema="h", distance=5, above_last_num_highs=1)
-
-        return higher_highs
-
     #############################################################################
     # PLOTTING STOCK ONLY
     #############################################################################
@@ -163,7 +159,7 @@ class CommonScripts:
             trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
             trendline_pros_obj = TrendlineProcessing()
             for prec in precision:    
-                trendline_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", 
+                trendline_df = trendline_obj.identify_trendlines(line_unit_col="h", 
                                                                         preciseness=prec, 
                                                                         max_trendlines_drawn=2)  
 

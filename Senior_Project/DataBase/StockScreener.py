@@ -17,44 +17,69 @@ As of now, August 5th 2021, columns used in this class are: symbol, volume, and 
 '''
 class ScreenerProcessor:
     '''
-    parameter -> cur_tickers_df (must contain column "symbol")
-    this function filters out rows where a symbol has "." in it,
-    like BRK.A or BRK.B
+    parameter:
+        cur_tickers_df (must contain column "symbol")
 
-    Reason: these are difficult to clean up
+    purpose:
+        this function filters out rows where a symbol has "." in it,
+        like BRK.A or BRK.B
+
+        Reason: these are difficult to clean up
+    
+    return:
+        df of ticker without the sublass shares
     '''
     def rmv_subclass_shares(self, cur_tickers_df):
         df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains("\.|\^|\/|\-")]
         return df_filtered
 
     '''
-    parameter -> cur_tickers_df (must contain column "symbol")
-    this function filters out rows where a symbol has a number
-    at the end of it
+    params: 
+        cur_tickers_df (must contain column "symbol")
+    
+    purpose:
+        this function filters out rows where a symbol has a number
+        at the end of it
 
-    Reason: these are difficult to clean up
+        Reason: these are difficult to clean up
+
+    return:
+        filtered df of tickers without numers in symbols
     '''
     def rmv_numbered_symbols(self, cur_tickers_df):
         df_filtered = cur_tickers_df[~cur_tickers_df['symbol'].str.contains(r'\d')]
         return df_filtered
 
     '''
-    parameter -> cur_tickers_df (must contain column "name")
-    this function filters out rows where a name has "Acquisition" in it
+    params:
+        cur_tickers_df (must contain column "name")
+    
+    purpose:
+        this function filters out rows where a name has "Acquisition" in it
 
-    Reason: acquisition implies this is a SPAC, which usually do not follow
-    technical analysis well (when they hover around 10 dollars without momentum)
-    This function also removes warrants.
+        Reason: acquisition implies this is a SPAC, which usually do not follow
+        technical analysis well (when they hover around 10 dollars without momentum)
+        This function also removes warrants.
+
+    return:
+        df of tickers without spacs
     '''
     def rmv_spacs(self, tickers_df):
         tickers_df = tickers_df[~tickers_df['name'].str.contains("acquisition", case=False, regex=False)]
         return tickers_df
 
     '''
-    parameter -> cur_tickers_df (must contain column "name")
-    this function filters out rows where a name has "Acquisition" in it
+    params:
+        cur_tickers_df (must contain column "name")
+    
+    purpose:
+        this function filters out rows where a name has "Acquisition" in it
 
-    Reason: similar reason to spacs, these are repetitive instruments
+        Reason: similar reason to spacs, these are repetitive instruments
+    
+    return:
+        none
+
     '''
     def rmv_financial_instruments(self, tickers_df):
         tickers_df = tickers_df[~tickers_df['name'].str.contains("index", case=False, regex=False)]
@@ -70,10 +95,17 @@ class ScreenerProcessor:
         return tickers_df
 
     '''
-    parameter -> cur_tickers_df (must contain column "volume")
-    this function filters out rows where volume is 0.
 
-    Reason: these are warrants and greatly unnecessary tickers.
+    params:
+        cur_tickers_df (must contain column "volume")
+    
+    purpose:
+        this function filters out rows where volume is 0.
+
+        Reason: these are warrants and greatly unnecessary tickers.
+    
+    return:
+        none
     '''
     def rmv_empty_volume(self, tickers_df):
         tickers_df = tickers_df[tickers_df["volume"] > 0]
@@ -121,8 +153,15 @@ class NasdaqStockScreener(ScreenerProcessor):
         )
 
     '''
-    central function of the class
-    it fetches data from NASDAQ api, given the parameters
+    params: 
+        booleans for exchanges you want to get lists of ticker symbols from
+
+    purpose:
+        central function of the class
+        it fetches data from NASDAQ api, given the parameters
+
+    return:
+        df of list of symbols received from the Nasdaq API
     '''
     def retrieve_current_tickers(self, NYSE=True, NASDAQ=True, AMEX=True, SPACS=False, CLASS_SHARES=False):
 
@@ -148,10 +187,12 @@ class NasdaqStockScreener(ScreenerProcessor):
     params
         exchange -> specifying which exchange to get stocks from
 
-    Given the exchange as the parameter,
-    This function makes an API call to NASDAQ database to retrieve stocks from the underlying exchange
+    purpose:
+        Given the exchange as the parameter,
+        This function makes an API call to NASDAQ database to retrieve stocks from the underlying exchange
 
-    returns a DataFrame of stocks and their info
+    returns:
+        DataFrame of stocks and their info
     '''
     def __fetch_from_exchange(self, exchange):
         param_list = self.params(exchange)
@@ -164,8 +205,12 @@ class NasdaqStockScreener(ScreenerProcessor):
     params 
         ticker_df -> dataframe that needs to be cleaned up
 
-    the official data from NASDAQ is messy, there are symbols, and numbers are strings.
-    this function fixes that, as well as replaces empty cells and nans with 0
+    purpose:
+        the official data from NASDAQ is messy, there are symbols, and numbers are strings.
+        this function fixes that, as well as replaces empty cells and nans with 0
+
+    return:
+        clean up version of the recieved data
     '''
     def __clean_up_api_return_df(self, ticker_df):
         # remove signs from columns
@@ -199,11 +244,15 @@ class NasdaqStockScreener(ScreenerProcessor):
         outdated_tickers -> from the old current_tickers file
         new_tickers -> from the newly fetched API call
 
+    purpose:
+        compares previous version of current tickers with the new one,
+        and ads the outdated stocks to the delisted df
+
     returns
         delisted_tickers -> updated df with delisted stocks
     '''
-    def update_delisted_stocks(self, delisted_tickers, outdated_tickers, new_tickers):
-        outdate_list = outdated_tickers["symbol"].tolist()
+    def update_delisted_stocks(self, delisted_tickers, prev_current_tickers, new_tickers):
+        outdate_list = prev_current_tickers["symbol"].tolist()
         new_list = new_tickers["symbol"].tolist()
         # find difference between new and outdated tickers
         old_stocks = list(set(outdate_list) - set(new_list))
@@ -212,7 +261,7 @@ class NasdaqStockScreener(ScreenerProcessor):
         if len(old_stocks) == 0:
             return old_stocks
 
-        new_old_stocks_df = outdated_tickers[outdated_tickers["symbol"].isin(old_stocks)]
+        new_old_stocks_df = prev_current_tickers[prev_current_tickers["symbol"].isin(old_stocks)]
         new_old_stocks_df["date"] = datetime.date.today()
 
         # make it compatible with delisted tickers
@@ -220,22 +269,4 @@ class NasdaqStockScreener(ScreenerProcessor):
 
         return delisted_tickers 
 
-
-    def filter_by_marketcap(self, lower_limit, upper_limit):
-        pass
-
-    def filter_by_region(self, region):
-        pass
-
-    def filter_by_sector(self, sector):
-        pass
-
-
-
-if __name__ == '__main__':
-
-    screener_obj = NasdaqStockScreener()
-
-    df = screener_obj.retrieve_current_tickers()
-    print(df.head(10))
 

@@ -1,5 +1,4 @@
 # using libraries for visualizations
-from numpy import NaN
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt # for trendlines
 import pandas as pd
@@ -9,14 +8,16 @@ import pandas as pd
 params:
     ohlc_data -> raw price data 
     peaks -> straight up DataFrame from identify_both_lows_highs()
-    trendlines -> straight up DataFrame from identify_trendlines_LinReg()
+    trendlines -> straight up DataFrame from identify_trendlines()
 
+purpose:
+    This function is used for visualizing purposes. it is used to examine whether what you want 
+    actually shows itself.
 
-This function is used for visualizing purposes. it is used to examine whether what you want 
-actually shows itself.
+    It adds different colors to what exactly you are checking for (purple for extrema, for instance)
 
-It adds different colors to what exactly you are checking for (purple for extrema, for instance)
-
+return:
+    none
 
 '''
 def visualize_ticker(all_ohlc_data, peaks_df=pd.DataFrame(), trendlines=pd.DataFrame(), distance=5, from_=None, to=None,):
@@ -48,8 +49,6 @@ def visualize_ticker(all_ohlc_data, peaks_df=pd.DataFrame(), trendlines=pd.DataF
         }
         all_data.append(go.Candlestick(peaks_trace))
 
-    # # all_data = [go.Candlestick(price_trace), go.Candlestick(peaks_trace)]
-    # all_data = [go.Candlestick(price_trace)]
     fig = go.Figure(data = all_data)
     fig.update_yaxes(fixedrange = False)
 

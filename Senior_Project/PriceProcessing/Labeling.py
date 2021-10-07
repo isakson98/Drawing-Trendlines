@@ -25,13 +25,22 @@ class Labeling():
 
     '''
     params:
-        trendline_df
-        raw_df
+        trendline_df -> df of trendlines for the stock (from processed dir)
+        raw_df -> df of raw data (from raw dir)
+        num_of_lows -> number of lows to choose minimum from
+        profitable_r -> reward part of risk/reward (value above 1)
+    
+    purpose:
+        this function calculated the binary labels, having given the minium to figure 
+        and the profit price to calculate.
 
     returns:
-        series 
+        series  of true and false rows for respective trendlines
     '''
     def calculate_binary_label(self, trendline_df, raw_df, num_of_lows, profitable_r):
+
+        if profitable_r or num_of_lows:
+            raise ValueError("Negative values for profit or number of lows is not allowed")
 
         # establish what is the low going to be
         lows_col_name = f"stop_loss_{num_of_lows}_num_of_lows"
@@ -79,7 +88,8 @@ class Labeling():
     '''
     params:
         trendline_df -> df where rows are trendlines only
-        raw_df -> 
+        raw_df
+
     purpose:
         the entry will be end of day of breakout
 
@@ -121,6 +131,22 @@ class Labeling():
 
 
 
+    '''
+    params:
+        breakout_tmstmp -> df where rows are trendlines only
+        stop -> stop price
+        profit -> raw price
+        raw_df -> sequential raw data
+
+    purpose:
+
+        helper function of check_trendline_outcome!!!
+        this function determines whether the trade was succesfful or not based
+        on what gets hit first, the stop loss or the profit
+
+    returns:
+        return the series where each row is a profit price for the trendline
+    '''
     def __helper_check_trendline_outcome(self, breakout_tmstmp, stop, profit, raw_df):
         df_after_breakout = raw_df[raw_df['t'] > breakout_tmstmp]
         needed_cols_df = df_after_breakout[["h", "l", "t"]]

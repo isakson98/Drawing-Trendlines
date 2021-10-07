@@ -17,22 +17,18 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 from CommonScripts import CommonScripts
 from DataBase.popular_paths import popular_paths
 
-# robot made
+# default python
 import time
 
 
 if __name__ == '__main__':
     start = time.time()
     ###################################################################
-    # PLACE SCRIPT BETWEEN THE TWO LINES
+    # PLACE SCRIPT BETWEEN THE TWO LINES (any of the methods from CommonScript class)
+    # You can define your own function or change parameters of existing ones
     ###################################################################
     comm_obj = CommonScripts()
-
     comm_obj.draw_descending_trendline_on_bullish_stock("AAPL")
-    # comm_obj.add_columns_to_big_files(popular_paths['big data']["dir_list"], 
-    #                                   "big_bull_triangles_big_data.csv", 
-    #                                   popular_paths['historical 1 day']["dir_list"], 
-    #                                   ["avg_v_20"])
     ##################################################################
     end = time.time()
     print(str(end-start) + " seconds")

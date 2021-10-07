@@ -3,7 +3,6 @@
 from DataBase.DataFlatDB import DataFlatDB
 
 import pandas as pd
-import os
 
 '''
 
@@ -21,9 +20,13 @@ class FileConcat(DataFlatDB):
         path_to_concat -> directory to pull data from
         file_name -> new file name to save as
     
-    this file concatantes files in the given directory
+    description:
+        this file concatantes files in the given directory
 
-    Whoa -> concat is silly fast    
+        Whoa -> concat is silly fast, compared to appending df to df to df
+
+    return:
+        none 
     '''
 
     def concat_files(self, path_to_concat, file_name):
@@ -60,6 +63,16 @@ class FileConcat(DataFlatDB):
         return name_comp[0]
 
 
+    '''
+    params:
+        ticker_df -> entire df for only one ticker in group
+        new_data_db_obj -> db object that knows where to get data from
+        list_attribute_to_add -> list of columns to add
+    purpose:
+        extracting ticker name from the file name
+    return:
+        name of ticker -> string
+    '''
     counter = 0
     def __helper_add_new_columns(self, ticker_df : pd.DataFrame, new_data_db_obj : DataFlatDB, list_attribute_to_add :list):
 

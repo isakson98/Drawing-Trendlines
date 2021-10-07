@@ -35,14 +35,15 @@ class TrendlineDrawing:
         breakout_based_on -> allows to specify the criteria for a breakout (programmable)
                             allowed values so far "close" and 
 
-    At this momement in time, to draw a trendline, I need two things:
-    the raw data and the starting points of each trendline in advance
-    before starting this class
+    purpose: 
+        At this momement in time, to draw a trendline, I need two things:
+        the raw data and the starting points of each trendline in advance
+        before starting this class
 
-    Since, I have these two pieces of info in different locations,
-    I need to merge the two together to make to perform calculations in this class
+        Since, I have these two pieces of info in different locations,
+        I need to merge the two together to make to perform calculations in this class
 
-    IMPORTANT : ohlc_raw and starting_extrema_series must have the same index
+        IMPORTANT : ohlc_raw and starting_extrema_series must have the same index
 
     '''
     def __init__(self, ohlc_raw, start_points_list, breakout_based_on):
@@ -55,14 +56,17 @@ class TrendlineDrawing:
         series_strip -> strip from extrema till the end of the given consolidation
         hash_key_parts -> list, elements of which form the key in a consecutive order
                           [starting time stamp, candles forward, length of series, unit drawn on]
-        
-    In order to avoid calculating the same linear regression line on the same strip of series,
-    I decided to calculate it only once and cache the result for future use.
+    
+    purpose: 
+        In order to avoid calculating the same linear regression line on the same strip of series,
+        I decided to calculate it only once and cache the result for future use.
 
-    I am caching the trendline by constructing a special key, that should identify the line it should calculate
+        I am caching the trendline by constructing a special key, that should identify the line it should calculate
 
-    This will require quite a bit more memory overhead, but from my analysis it could 2x the trendline identificaiton speed
+        This will require quite a bit more memory overhead, but from my analysis it could 2x the trendline identificaiton speed
 
+    return:
+        list [series -> strip of data shortened as a result of linear regression, reg -> values about the trendline]
     
     '''
     def __locate_trendline(self, series_strip, hash_key_parts):
@@ -88,13 +92,17 @@ class TrendlineDrawing:
         series_strip -> y values of the linear regression
         extreme -> either "h" or "l" : whether to filter values that are above the line or below
 
-    calculate_lin_reg() accomodates finding both
-    ascending and descending trendlines
+    purpose: 
+        calculate_lin_reg() accomodates finding both
+        ascending and descending trendlines
 
-    ENSURE that the index values are in linear consecutive ascending order (not random 45,71,43)
+        ENSURE that the index values are in linear consecutive ascending order (not random 45,71,43)
 
-    this function eliminates values that are either below or above the linear regression, thus,
-    smoothing out the trendline based on the extremas within the consolidation.
+        this function eliminates values that are either below or above the linear regression, thus,
+        smoothing out the trendline based on the extremas within the consolidation.
+
+    return:
+        list[series -> strip of data after linear regression applied, reg -> linear regerssion object with slope values, etc]
 
     '''
     def __calculate_lin_reg(self, series_strip, extreme):
@@ -117,18 +125,22 @@ class TrendlineDrawing:
         preciseness -> how many "touches" do you your trendline to have
         max_trendlines_drawn -> maximum trendlines drawn from one starting position
 
-    allows to specify which range of values you want a trendline to be drawn at
-    calculating trendlines based on the price candles
+    purpose: 
+        allows to specify which range of values you want a trendline to be drawn at
+        calculating trendlines based on the price candles
 
-    with a start point identified, we need to identify the end
-    in a primitive approach -> iterate by each day (starting from +5 days)
-    until a new candles high is above the linear regression from yesterdays
+        with a start point identified, we need to identify the end
+        in a primitive approach -> iterate by each day (starting from +5 days)
+        until a new candles high is above the linear regression from yesterdays
 
-    precisesness -> the higher the number, the more candles algo will draw the line over
+        precisesness -> the higher the number, the more candles algo will draw the line over
+
+    return: 
+        df, where each row is a new trendline
 
     '''
     # TODO compartmentalize to accomodate which section to build a trendline on
-    def identify_trendlines_LinReg(self, line_unit_col, preciseness, start=None, end=None, min_days_out=5, max_trendlines_drawn=2):
+    def identify_trendlines(self, line_unit_col, preciseness, start=None, end=None, min_days_out=5, max_trendlines_drawn=2):
 
         # if a start date is not given, assume the entire chart for a trendline 
         if start != None:
@@ -197,11 +209,12 @@ class TrendlineDrawing:
         index_of_breakout_day -> index of breakout on the total dataframe
         extrema_type -> what the lin reg is calculated on
 
-    this function has options for how to determine a breakout. It is UPDATEABLE,
-    meaning a user can modify when he considers a breakout to have occured.
+    purpose: 
+        this function has options for how to determine a breakout. It is UPDATEABLE,
+        meaning a user can modify when he considers a breakout to have occured.
 
-    Insert new versions as if statements, name this version appropriately, and
-    add it to a constructor
+        Insert new versions as if statements, name this version appropriately, and
+        add it to a constructor
 
     returns:   
         boolean -> True if breakout occured / False if not
@@ -252,8 +265,15 @@ class TrendlineDrawing:
                 return False
 
     '''
+    params:
+        none
     
-    To avoid keys hitting the content 
+    purpose:
+        To avoid keys hitting the content of the previous trendline, i clear the dictionary
+        after having completed drawing the trendlines
+
+    return:
+        none
 
     '''
     def clear_cache(self):

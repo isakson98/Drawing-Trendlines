@@ -17,12 +17,13 @@ class RawPriceProcessing:
         distance -> number of candles passed after which, if price fails to make a new HIGH,
                     a candle is considered an extreme
         extrema_type -> specify whether you want to find high or lows
-                    
-    To perform linear regression well (meaning draw a clear trendline) 
-    more than once on one chart, I need to be able to assign starting points
-    and end points to the lines.
 
-    AGNOSTIC TO TIMEFRAME
+    purpose:                
+        To perform linear regression well (meaning draw a clear trendline) 
+        more than once on one chart, I need to be able to assign starting points
+        and end points to the lines.
+
+        AGNOSTIC TO TIMEFRAME
 
     returns:
         extrema_only
@@ -69,9 +70,10 @@ class RawPriceProcessing:
         distance -> number of candles passed after which, if price fails to make a new extreme 
                     high or low, a candle is considered an extreme
 
-    usually you are gonna want to get both highs and lows for a given stock.
-    thus this function calls identify_lows_highs with both params low and the high, keeping the same
-    distance and concatanating the two together.
+    purpose: 
+        usually you are gonna want to get both highs and lows for a given stock.
+        thus this function calls identify_lows_highs with both params low and the high, keeping the same
+        distance and concatanating the two together.
 
     returns:
         dictionary of high extremas and low extremas
@@ -89,16 +91,17 @@ class RawPriceProcessing:
         extrema -> either highs "h" or lows "l"
         above_last_num_highs -> number of n previous highs/lows you want current extrema to be higher than
 
-    In order to draw valid trendlines, I only want to draw trendlines of stock that are
-    in a trend. This particular function filters existing lows and highs to leave only those
-    that are above its preceding n-lows or n-highs, respectively.
+    purpose: 
+        In order to draw valid trendlines, I only want to draw trendlines of stock that are
+        in a trend. This particular function filters existing lows and highs to leave only those
+        that are above its preceding n-lows or n-highs, respectively.
 
-    I am using dataframe query() because i will be creating new columns in a loop and
-    do not know in advance what their names are going to be (they depend on function's params) AND
-    I need to use all of these columns at once.
-    query() allows me to keep track of column names created
+        I am using dataframe query() because i will be creating new columns in a loop and
+        do not know in advance what their names are going to be (they depend on function's params) AND
+        I need to use all of these columns at once.
+        query() allows me to keep track of column names created
 
-    Can get either higher highs or higher lows
+        Can get either higher highs or higher lows
 
     returns:
         higher_highs_and_lows -> only higher highs portion
@@ -126,7 +129,8 @@ class RawPriceProcessing:
         ticker_volume_series -> "v" volume column only
         distance -> range of candles
     
-    This function calculates average volume for a ticker (agnostic to timeframe and its multiple)
+    purpose: 
+        This function calculates average volume for a ticker (agnostic to timeframe and its multiple)
 
     returns:
         average_v_series

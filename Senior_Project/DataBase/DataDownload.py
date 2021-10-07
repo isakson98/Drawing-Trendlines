@@ -26,9 +26,10 @@ class DataDownload:
         timespan -> timeframe (minute, hour, day, week, month, year)
         from_ -> timestamp or date (YYYY-MM-DD) that is starting point
         to -> timestamp or date (YYYY-MM-DD) that is the end point
-
-    Wrapper for aggregate(bars) API call from Polygon
-    By default, this function wants data from the earliest date possible till today
+    
+    description:
+        Wrapper for aggregate(bars) API call from Polygon
+        By default, this function wants data from the earliest date possible till today
 
     returns:
         data -> DataFrame of received result (empty if no result)

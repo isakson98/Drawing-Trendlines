@@ -1,5 +1,3 @@
-from random import shuffle
-import numpy as np
 import multiprocessing as mp
 import pandas as pd
 
@@ -54,6 +52,12 @@ class FlatDBProssesedMod:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
+
+    purpose:
+        adds bullish trendlines to specified file name
+
+    return:
+        none
     '''
     def add_bullish_desc_trendlines(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
@@ -115,7 +119,7 @@ class FlatDBProssesedMod:
             existing_df_len = len(trend_existing_df)
             new_trendline_df = pd.DataFrame()
             for one_prec in preciseness:
-                one_prec_df = trendline_obj.identify_trendlines_LinReg(line_unit_col="h", preciseness=one_prec)
+                one_prec_df = trendline_obj.identify_trendlines(line_unit_col="h", preciseness=one_prec)
                 new_trendline_df = new_trendline_df.append(one_prec_df)
             trendline_obj.clear_cache()
 
@@ -142,8 +146,11 @@ class FlatDBProssesedMod:
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
                   n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
-
+    
+    purpose:
         adds latest pole length to each trendline
+
+    return none
     '''
     def add_pole_length(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
@@ -202,9 +209,13 @@ class FlatDBProssesedMod:
                   timespan -> pt.2 of key composition for needed dir
                   n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
 
-    adds latest pole length to flag (also known as base) length ratio to each trendline. 
-    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
-    which refers to the length from the N latest minima
+    purpose:
+        adds latest pole length to flag (also known as base) length ratio to each trendline. 
+        adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
+        which refers to the length from the N latest minima
+
+    return:
+        none
     '''
     def add_pole_flag_length_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
@@ -253,8 +264,13 @@ class FlatDBProssesedMod:
                   timespan -> pt.2 of key composition for needed dir
                   n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
 
-    # TODO
-    NOTE: function does not pick up from where it left off: make sure to adjust for that in the future
+    purpose: 
+        adds flag low
+
+        NOTE: function does not pick up from where it left off: make sure to adjust for that in the future
+
+    returns:
+        none
     
     '''
     def add_flag_low_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
@@ -318,11 +334,12 @@ class FlatDBProssesedMod:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
-                  n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
 
-    adds latest pole length to flag (also known as base) length ratio to each trendline. 
-    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
-    which refers to the length from the N latest minima
+    purpose:
+        adds latest pivot height to flag height ratio to the specified tickers.
+
+    return:
+        none
     '''
     def add_pivot_flag_height_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
 
@@ -382,9 +399,13 @@ class FlatDBProssesedMod:
                   timespan -> pt.2 of key composition for needed dir
                   n_prev -> get_length_from_prev_local_extrema() params -> which low to measure from
 
-    adds latest pole length to flag (also known as base) length ratio to each trendline. 
-    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
-    which refers to the length from the N latest minima
+    purpose:
+        adding pole info to provided tickers, that type of pole info can be found in the 
+        pole_low_info_functions hash_map at the front of the class
+        can be executed in parallel with same function but different tickers
+
+    returns:
+        none
     '''
     # TODO: need to track of what column needs pre-existing columns for its own calculation
     def add_pole_info(self, list_ticker_names, list_increment : mp.Value, **kwargs):
@@ -458,9 +479,11 @@ class FlatDBProssesedMod:
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
 
-    adds latest pole length to flag (also known as base) length ratio to each trendline. 
-    adds it in the following format column name : "pole_flag_length_ratio_N", where is n_prev,
-    which refers to the length from the N latest minima
+    purpose:
+        adding pole to flag height ratio to the provided ticker names 
+
+    return:
+        none
     '''
     def add_pole_flag_height_ratio(self, list_ticker_names, list_increment : mp.Value, **kwargs):
         # init db objects and verify that the directories exist 
@@ -521,8 +544,14 @@ class FlatDBProssesedMod:
         list_ticker_names -> list of tickers that need to be processed (TICKERS NOT FILE NAMES!)
         kwargs -> multiple -> pt.1 of key composition for needed dir
                   timespan -> pt.2 of key composition for needed dir
+                  num_of_lows -> number of past lows to use to find the minimum
+                  profit_r -> r/r you want for the label 
+    
+    purpose:
+        add latest labels to the triangles 
 
-    add latest labels
+    return: 
+        none
     '''
     def add_labels_triangles(self, list_ticker_names, list_increment : mp.Value, **kwargs):
         # init db objects and verify that the directories exist 
@@ -584,8 +613,12 @@ class FlatDBProssesedMod:
         list_raw_ticker_file_names -> list of file names of raw prices fetched 
                                       (could be different each time, either all or only current)
 
-    this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
-    up the work
+    purpose:
+        this function parallalizes the workload on all of the functions defined above
+        TOTAL_PROCESSES global variable can be modified right above the class
+
+    return:
+        none
 
     '''
     def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_ticker_names:list):

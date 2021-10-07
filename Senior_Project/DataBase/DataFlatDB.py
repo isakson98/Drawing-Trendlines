@@ -51,16 +51,17 @@ class DataFlatDB:
     params
         file_path -> path to file to be renamed
 
-    this function is used when a new version of data is available,
-    but the old one is decided to be saved as well. Use this function
-    to add date to the outdated file, so as to show that it is an old file
+    description:
+        this function is used when a new version of data is available,
+        but the old one is decided to be saved as well. Use this function
+        to add date to the outdated file, so as to show that it is an old file
 
     returns:
         new_path_old_file -> new path of the old file, the one renamed
     '''
     def __add_date_to_file_name(self, file_path : str) -> str:
         directory, file_name =  os.path.split(file_path)
-        _, str_date = self.__get_files_creation_date(file_path)
+        _, str_date = self.__get_todays_date(file_path)
         new_file_name = str_date + "_" + file_name 
         new_path_old_file = os.path.join(directory, new_file_name)
         
@@ -73,10 +74,14 @@ class DataFlatDB:
     params:
         file_name -> name of the file to have an operation on
 
-    helper function that creates the suffix of the file, based on 
-    where the file is located. Builds two 
+    description:
+        helper function that creates the suffix of the file, based on 
+        where the file is located. Builds two 
 
-    if price/1_day/file_name, file_name must have price_1_day as suffix of the name
+        if price/1_day/file_name, file_name must have price_1_day as suffix of the name
+
+    returns:
+        bool
 
     '''
     def __create_file_suffix(self, ext=".csv", depth=2):
@@ -99,15 +104,16 @@ class DataFlatDB:
 
     '''
     params:
-        path -> path of the file
+        none
 
-    helper function that fetches the creation date of the file
+    description:
+        helper function that fetches the creation date of the file
 
     returns 
         creation_date -> datetime object of the date
         string_v -> string version of the date for adding to file name
     '''
-    def __get_files_creation_date(self, path : str) -> list:
+    def __get_todays_date(self) -> list:
 
         today_date = dt.date.today()
         string_v = today_date.strftime("%d-%b-%Y")
@@ -117,8 +123,9 @@ class DataFlatDB:
     params:
         list_dir -> list of directories in top-down order for concatenation
 
-    helper function used in all functions available to the user of this class
-    this function concatonates the given elements in the list 
+    description:
+        helper function used in all functions available to the user of this class
+        this function concatonates the given elements in the list 
 
     returns:
         string_path -> the full path given 
@@ -137,8 +144,9 @@ class DataFlatDB:
     params:
         string_path -> the path given to verify
 
-    this function is used before operating on existing files
-    to verify that the file actually exists
+    description:
+        this function is used before operating on existing files
+        to verify that the file actually exists
 
     returns:
         boolean -> True if file exists / False otherwise
@@ -157,7 +165,8 @@ class DataFlatDB:
         root_name_file -> name of the file to be added
         content_to_add -> content of this new file
 
-    one of core functions of this class. use this function to create new files
+    description:
+        one of core functions of this class. use this function to create new files
 
     returns:
         True/False -> True if write was successful
@@ -178,9 +187,10 @@ class DataFlatDB:
         content_to_add -> full content of this new file
         keep_old -> boolean, if yes, existing old data will be kept but renamed, with date added
 
-    With entire df as parameter, update_data() saves to file name given.
-    Unlike adding, this function also has a feature of keeping the old content of the file
-    by renaming it, adding the date the file was originally created (useful for watchlists)
+    description:
+        With entire df as parameter, update_data() saves to file name given.
+        Unlike adding, this function also has a feature of keeping the old content of the file
+        by renaming it, adding the date the file was originally created (useful for watchlists)
 
     returns:
         True/False -> True if write was successful
@@ -204,7 +214,8 @@ class DataFlatDB:
     params:
         full_file_name -> root name of file you want data of + suffix will be appended
 
-    if no files is given, you return everything containing in that folder
+    description:
+        if no files is given, you return everything containing in that folder
 
     returns:
         dict -> path ->full path to file, data
@@ -219,11 +230,12 @@ class DataFlatDB:
         return df
         
     '''
+    params:
+        none
 
-    you returns everything containing in that folder
-
-    TODO: think of using processes to split up the work, use a generator/yield as a client
-
+    description:
+        you returns everything containing in that folder
+    
     return
         big_list list of dataframes in the folder
     '''
@@ -231,16 +243,26 @@ class DataFlatDB:
         return os.listdir(self.dir_operated_on)
 
     '''
-    returns the ticker portion of the file name
+    params:
+        file_name -> name of file with 
+
+    description:
+        parses out the ticker out of the file name
+
+    returns:
+        returns the ticker portion of the file name
     '''
     def __retrieve_ticker_name_helper(self, file_name):
         split_list = file_name.split("_")
         return split_list[0]
 
     '''
-
-    you returns every ticker symbol containing in that folder
-    using map() that enacts that function on every element of the iterable
+    params:
+        none
+    
+    description:
+        you returns every ticker symbol containing in that folder
+        using map() that enacts that function on every element of the iterable
 
     return
         all_ticker_names 
@@ -256,7 +278,11 @@ class DataFlatDB:
     params:
         full_file_name -> name of file you want data of
 
-    this function deletes a file (if that ever becomes necessary)
+    description:
+        this function deletes a file (if that ever becomes necessary)
+
+    return:
+        bool
     '''
     def remove(self, full_file_name):
         full_path = self.__merge_path_content([self.dir_operated_on, full_file_name])
@@ -267,12 +293,13 @@ class DataFlatDB:
     params:
         dir_list_to_operate_in -> list of top-down directories that lead to the one you want to work on
 
-    I am anticipating working a lot with a lot of files just one directory at a time.
-    To avoid overhead constantly verifying full file path for every file, 
-    I decided to allow to specify it just once. This way it's not done redundantly.
-    If you decide to change the directory, you can do it using this function.
-    It will change the member variable that is used in all main functions,
-    that stores the full path to the directory 
+    description:
+        I am anticipating working a lot with a lot of files just one directory at a time.
+        To avoid overhead constantly verifying full file path for every file, 
+        I decided to allow to specify it just once. This way it's not done redundantly.
+        If you decide to change the directory, you can do it using this function.
+        It will change the member variable that is used in all main functions,
+        that stores the full path to the directory 
 
     returns:
         str_dir -> full path given as a list as a param turned into a string

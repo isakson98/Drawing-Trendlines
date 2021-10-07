@@ -50,10 +50,17 @@ class FlatDBRawMod:
         self.current_df = self.flat_db.retrieve_data("all_current_tickers.csv")
 
     '''
-    update_current_ticker_list() updates a file of current tickes by utilizing
-    a NasdaqStockScreener() object, which makes a call to scrape Nasdaq's screener page.
-    In addition to that, this function compares the refresh list of tickers and adds outdated
-    tickers to the delisted file in another directory.
+    params: 
+        none
+
+    purpose:
+        update_current_ticker_list() updates a file of current tickes by utilizing
+        a NasdaqStockScreener() object, which makes a call to scrape Nasdaq's screener page.
+        In addition to that, this function compares the refresh list of tickers and adds outdated
+        tickers to the delisted file in another directory.
+
+    return:
+        none
     '''
     def update_current_ticker_list(self):
         self.flat_db = DataFlatDB(popular_paths["current tickers"]["dir_list"])
@@ -82,7 +89,11 @@ class FlatDBRawMod:
         params -> list of parameters for the Polygon API call
         tickers_to_update -> empty by default, specific list of tickers you want to update
     
-    populate_price_directory() responsible for creating new files (single threaded)
+    purpose:
+        populate_price_directory() responsible for creating new files (single threaded)
+
+    return:
+        none
     '''
     def populate_price_directory(self, dir_list, params, list_of_tickers=[]):
         self.flat_db.change_dir(dir_list)
@@ -105,8 +116,12 @@ class FlatDBRawMod:
                   timespan
         tickers_to_update -> empty by default, specific list of tickers you want to update
     
-    refresh_directory() -> connects two modules DataFlatDB (os wrapper) and DataDownload to update
-    existing files with the freshest dates (single threaded)
+    purpose:
+        connects two modules DataFlatDB (os wrapper) and DataDownload to update
+        existing files with the freshest dates (single threaded)
+
+    return:
+        none
     '''
     def refresh_price_directory(self, dir_list, params, tickers_to_update=[]):
         self.flat_db.change_dir(dir_list)
@@ -144,7 +159,12 @@ class FlatDBRawMod:
         update -> whether you want to update or populate from fresh
         tickers_to_update -> empty by default, specific list of tickers you want to update
 
-     threaded_add_new_data deals 
+    purpose:
+        threaded_add_new_data distributed the ticker list between threads and launches the 
+        same download to pull data from the api
+
+    return:
+        none
     '''
     def threaded_add_new_price_data(self, dir_list, params, update, tickers_to_update=[]):
 
@@ -188,9 +208,13 @@ class FlatDBRawMod:
         params -> getting passed down from a few functions above, params for the Polygon API call
         update -> whether we are adding values to existing tickers or nah
 
-    thread helper function for get_multiple_price_data()
-    IMPORTANT to note that we are adding name key to the params dictionary here.
-    Otherwise, get_price_data() will fail without having a string ticker as a param 
+    purpose:
+        thread helper function for get_multiple_price_data()
+        IMPORTANT to note that we are adding name key to the params dictionary here.
+        Otherwise, get_price_data() will fail without having a string ticker as a param
+
+    return:
+        none 
     
     '''
     def __thread_dwn_multiple_price_data(self, list_tickers, params, update):
@@ -250,13 +274,13 @@ class FlatDBRawMod:
     params:
         today_datetime -> displays current time
 
-    this function is used to determine where to cap the data arrival
-    I do not want to receive incomplete data for todays date in the
-    middle of the day
+    purpose:
+        this function is used to determine where to cap the data arrival
+        I do not want to receive incomplete data for todays date in the
+        middle of the day
 
     returns:
         timestamp in milliseconds of the last bar to fetch
-    
     '''
     def __choose_final_timestamp(self):
 
@@ -288,12 +312,16 @@ class FlatDBRawMod:
             timespan -> minute / hour / day / week / month (multiple and timespan params go together)
             distance -> # of candles that pass after extrema to consider it an extrema
 
-    important to note: this function looks up the proper directory of the files, based 
-    on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
+    purpose:
+        important to note: this function looks up the proper directory of the files, based 
+        on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
 
-    can be launched by parallel_ticker_workload()
-    
-    create new files with highs and lows for all tickers (current and delisted)
+        can be launched by parallel_ticker_workload()
+        
+        create new files with highs and lows for all tickers (current and delisted)
+
+    return:
+        none
 
     '''
     def add_freshest_extrema_on_tickers(self, list_ticker_names, **kwargs):
@@ -373,12 +401,16 @@ class FlatDBRawMod:
                   timespan, 
                   days_window
     
-    this function adds freshest average volume 
+    purpose:
+        this function adds freshest average volume 
 
-    important to note: this function looks up the proper directory of the files, based 
-    on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
+        important to note: this function looks up the proper directory of the files, based 
+        on the timespan and the multiple, that are components of a key in the dict in popular_paths.py
 
-    can be launched by parallel_ticker_workload()
+        can be launched by parallel_ticker_workload()
+
+    return:
+        none
     
     '''
     def add_freshest_average_volume(self, list_ticker_names, **kwargs):
@@ -450,12 +482,16 @@ class FlatDBRawMod:
                   avg_v_distance -> number of candles average volume of 
                   avg_v_min -> 5 min volume allowed
 
-    this function creates/updates a column named "hq_hh" -> high quality higher highs
-    these are higher highs, filtered further by average volume at the extrema
+    purpose:
+        this function creates/updates a column named "hq_hh" -> high quality higher highs
+        these are higher highs, filtered further by average volume at the extrema
 
-    This is the only function that does not update -> it calculates hh_hq from fresh start.
+        This is the only function that does not update -> it calculates hh_hq from fresh start.
 
-    This function assumes, you already have the needed columns of high extremas and avg volume
+        This function assumes, you already have the needed columns of high extremas and avg volume
+
+    return:
+        none
     
     '''
     def add_high_qual_higher_highs(self, list_ticker_names, **kwargs):
@@ -515,8 +551,12 @@ class FlatDBRawMod:
         list_raw_ticker_file_names -> list of file names of raw prices fetched 
                                       (could be different each time, either all or only current)
 
-    this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
-    up the work
+    purpose:
+        this function parallalizes the workload on the save_extrema_on_tickers() function by splitting
+        up the work
+    
+    return:
+        none
 
     '''
     def parallel_ticker_workload(self, proc_function, partial_fun_params:dict, list_ticker_names:list):
