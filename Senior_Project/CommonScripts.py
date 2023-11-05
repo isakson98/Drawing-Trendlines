@@ -24,6 +24,7 @@ from DataBase.FileConcat import FileConcat
 from PriceProcessing.TrendlineDrawing import TrendlineDrawing
 from PriceProcessing.TrendlineProcessing import TrendlineProcessing
 from PriceProcessing.Visualize import visualize_ticker
+from PriceProcessing.RawPriceProcessing import RawPriceProcessing
 
 # robot made
 import random
@@ -144,6 +145,8 @@ class CommonScripts:
     #############################################################################   
     # update daily candles raw volume
     ############################################################################# 
+
+
     def draw_descending_trendline_on_bullish_stock(self, STOCK_TO_VISUALIZE, precision=[3, 4, 5, 6]):
         
         raw_obj = DataFlatDB(popular_paths["historical 1 day"]["dir_list"])
@@ -153,8 +156,10 @@ class CommonScripts:
         trendline_df = trendline_obj.retrieve_data(STOCK_TO_VISUALIZE+trendline_obj.suffix)
 
         if len(trendline_df) == 0 :
-
-            def_higher_highs = self.get_higher_highs_one_stock_daily(STOCK_TO_VISUALIZE)
+            
+            extrema_dict=RawPriceProcessing().get_both_lows_highs(series_high=raw_df['h'], series_low =raw_df['l'], distance=5)
+            raw_df['h_extremes_5'] = extrema_dict["high"]
+            def_higher_highs = raw_df[raw_df["h_extremes_5"] == True]
             start_points_list = def_higher_highs["h_extremes_5"].index.tolist()
             trendline_obj = TrendlineDrawing(raw_df, start_points_list=start_points_list, breakout_based_on="strong close")
             trendline_pros_obj = TrendlineProcessing()

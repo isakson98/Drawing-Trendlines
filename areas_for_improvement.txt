@@ -1,0 +1,59 @@
+
+
+why work on a brand new project if this is already a good, documented base?
+
+Mindset: After the initial time investment, adding and analyzing new features should be the main goal 
+
+CATEGORIES of improvements
+
+design improvements
+- refactor code to be more efficient and have less boilerplate
+- utilize apache airflow
+- use relational db
+- make transition between local and cloud more seamless
+- have the ability to easily get new features and retrain
+- have the ability to pull new data
+- have the ability to make realtime decisions
+- have better visualizations
+- make it compatible with crypto
+
+trendline improvement:
+- clean up trendline that do not touch any price 
+
+
+feature improvements:
+- price features
+-- raw price features -> independent of the setup 
+    -- pct increase
+    -- candle count
+    -- volume
+    -- gap-up on day of entry?
+    -- day of entry day green/red? / how green?
+    -- was the breakout day also a 5 day high? a day 10 high? -> however, would need to modify label as well
+-- technical indicators -> independent of the setup 
+    -- rsi
+    -- macd
+    -- Stochastic Oscillator 
+    -- emas (ma slope, ma envelope, # of ma reclaims, prices touches, or how much time spent above/below it for each )
+    -- emas pt2. (lowest ema that captures the bodies of the most candles at the low)
+-- setup features -> depends on the setup (pole/flag ratio, slopes, etc)
+-- market features 
+    -- relative strength to spy + to its sector (in more than just price, perhaps relative strength as well normalized)
+    -- relative strength of its sector to spy (+ to other sectors )
+    -- market breadth
+- fundies features -> include sector hot-encoding, q/q, y/y, eps, revenue
+- alternative features (sentiment, interest rates, etc, seasonality, volatility)
+NOTE:
+- does the calculation include the day of the entry or no? (i.e. make sure features do not interfere with labels)
+
+
+label improvements:
+- labels should be independent from features -> it just needs to know the entry price
+- define entry on start, is entry as soon as it breaks or EOD
+- introduce time limit
+- play around with stop loss
+- introduce distinction between good and great setups
+- increase r/r 
+- make profits several stage (sell at condition #1, sell at condition #2)
+- allow 
+

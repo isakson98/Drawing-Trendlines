@@ -15,7 +15,7 @@ Do not delegate everything to library classes, as this overfits stuff (no hard c
 '''
 # popular scripts, combination of all modules features above
 from CommonScripts import CommonScripts
-from DataBase.popular_paths import popular_paths
+# from DataBase.popular_paths import popular_paths
 
 # default python
 import time

@@ -28,8 +28,11 @@ PS. can think of this as a wrapper for the os module
 class DataFlatDB:
     
     # need to go one dir up to get access to database, since we are in a folder
-    root_data_dir = os.path.dirname(__file__)
-    root_data_dir = os.path.dirname(root_data_dir)
+    # root_data_dir = os.path.dirname(__file__)
+    # root_data_dir = os.path.dirname(root_data_dir)
+
+    # new directory with data files
+    root_data_dir = r'C:\Users\isaks\OneDrive\Desktop\Everything\Personal code\trading\_DATABASE_'
     dir_operated_on = None
     suffix = None
 

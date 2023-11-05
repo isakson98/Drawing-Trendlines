@@ -21,23 +21,26 @@ popular_paths = {
     ############################
     # RAW FOLDER
     ############################
-    'historical 1 week' : {"dir_list" : ["data", "raw", "price", "1_week"], "params" : {"multiplier": 1, "timespan" : "week"}},
-    'historical 1 day'  : {"dir_list" : ["data", "raw", "price", "1_day"],  "params" : {"multiplier": 1, "timespan" : "day"} },
+    'historical 1 week' : {"dir_list" : ["fileFormats", 'csv', "raw", "price",  "1_week"], "params" : {"multiplier": 1, "timespan" : "week"}},
+    'historical 1 day'  : {"dir_list" : ["fileFormats", 'csv', "raw", "price", "1_day"],  "params" : {"multiplier": 1, "timespan" : "day"} },
 
     ############################
     # WATCHLIST FOLDER
     ############################
-    'current tickers'   : {"dir_list" : ["data", "watchlists", "current_tickers"] },
-    'delisted tickers'  : {"dir_list" : ["data", "watchlists", "delisted_tickers"]},
+    # TODO: don't know have data for these on new local
+    # 'current tickers'   : {"dir_list" : ["data", "watchlists", "current_tickers"] },
+    # 'delisted tickers'  : {"dir_list" : ["data", "watchlists", "delisted_tickers"]},
 
     ############################
     # PROCESSED FOLDER
     ############################
-    'bull triangles 1 day' : {"dir_list" : ["data", "processed", "bullish_triangles", "1_day"]},
+    'bull triangles 1 day' : {"dir_list" : ["fileFormats", 'csv', "processed", "bullish_triangles", "1_day"]},
+    'new bull triangles 1 day' : {"dir_list" : ["fileFormats", 'csv', "processed", "new_bullish_triangles", "1_day"]},
 
     ############################
     # BIG DATA
     ############################
-    'big data' : {"dir_list" : ["data", "big_data"]},
+    # TODO: don't know the reason for this one
+    # 'big data' : {"dir_list" : ["data", "big_data"]},
 
 }
